@@ -104,6 +104,13 @@ public class S3 {
 		S3Object object = s3.getObject(new GetObjectRequest(fileBucket, fileKey));
 		return object;
 	}
+	
+	
+	public static S3Object downloadFile(AmazonS3 s3, String fileBucket, String fileKey){
+		System.out.println("Downloading output file \"" + fileKey + "\"");
+		S3Object object = s3.getObject(new GetObjectRequest(fileBucket, fileKey));
+		return object;
+	}
 
 	
 }

@@ -34,10 +34,10 @@ public class SyntacticNgram implements Writable {
     
     
     public SyntacticNgram(SyntacticNgram other) {
-    	word = other.word;
-    	pos_tag = other.pos_tag;
-    	dep_label = other.dep_label;
-    	head_index = other.head_index;
+    	word = other.getWord();
+    	pos_tag = other.getPosTag();
+    	dep_label = other.getDependancyLabel();
+    	head_index = other.getHeadIndex();
     }
     
     

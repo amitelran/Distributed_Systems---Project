@@ -13,19 +13,23 @@ import org.apache.hadoop.io.Writable;
 public class SyntacticNgramLine implements Writable {
         
     protected String headWord;															// The word which is the syntactic tree's root
-    protected List<SyntacticNgram> ngrams = new LinkedList<SyntacticNgram>();			// List of all syntactic ngrams in given line
+    protected SyntacticNgram[] ngrams;													// Array of all syntactic ngrams in given line
     protected int total_count;															// Total counts as summed in the years
     protected List<Pair<Integer, Integer>> counts_by_year = new LinkedList<Pair<Integer, Integer>>();				// Each element in the list is of form: <year, counts for year>
     
 
-    
     public SyntacticNgramLine(){}
+    
     
     
     /***************	 Constructor - receives line and parses into Syntactic Ngram line object	 ***************/
     
+    // Line is of form: 	head_word <TAB> syntactic-ngrams <TAB> total_count <TAB> counts_by_year <TAB>
+    // Syntactic-ngrams list elements are separated by space, and are of form:	 word/pos-tag/dep-label/head-index
+    
     
     public SyntacticNgramLine(String line) throws ParseException {
+    	
     	String[] lineSplit = line.split("\\t");						// Split line by tabs
     	for (int i = 0; i < lineSplit.length; i++) {
     		System.out.println(lineSplit[i]);
@@ -34,9 +38,10 @@ public class SyntacticNgramLine implements Writable {
         headWord = lineSplit[0]; 
         
         String[] synNgramsSplit = lineSplit[1].split("\\s+");		// Split syntactic ngrams by whitespace (every split is of form "word/pos-tag/dep-label/head-index")
+        ngrams = new SyntacticNgram[synNgramsSplit.length];
         for (int i = 0; i < synNgramsSplit.length; i++) {
         	SyntacticNgram synNgram = new SyntacticNgram(synNgramsSplit[i]);
-        	ngrams.add(synNgram);
+        	ngrams[i] = synNgram;
         }
         
         total_count = Integer.parseInt(lineSplit[2]);
@@ -56,15 +61,18 @@ public class SyntacticNgramLine implements Writable {
     
     
 	public SyntacticNgramLine(SyntacticNgramLine other) {
+		
         headWord = other.headWord;
         
-        List<SyntacticNgram> newNgramsList = new LinkedList<SyntacticNgram>();
-        for (SyntacticNgram ngram : other.ngrams) {
-        	newNgramsList.add(new SyntacticNgram(ngram));
+        SyntacticNgram[] otherNgrams = other.getNgrams();
+        ngrams = new SyntacticNgram[otherNgrams.length];
+        for (int i = 0; i < otherNgrams.length; i++) {
+        	ngrams[i] = otherNgrams[i];
         }
-        ngrams = newNgramsList;
         
         total_count = other.total_count;
+        
+        /* Deep copy Pairs list */
         
         List<Pair<Integer, Integer>> new_counts_by_year = new LinkedList<Pair<Integer, Integer>>();	
         for (Pair<Integer, Integer> pair : other.counts_by_year) {
@@ -81,14 +89,14 @@ public class SyntacticNgramLine implements Writable {
     public void readFields(DataInput in) throws IOException {
         headWord = in.readUTF();
         
-        int ngramsSize = in.readInt();					// First, read 'pushed' size of ngrams list
-        List<SyntacticNgram> ngramsList = new LinkedList<SyntacticNgram>();
+        int ngramsSize = in.readInt();					// First, read 'pushed' size of ngrams array
+        ngrams = new SyntacticNgram[ngramsSize];
+        
         for (int i = 0; i < ngramsSize; i++) {
         	SyntacticNgram syntNgram = new SyntacticNgram();
         	syntNgram.readFields(in);
-        	ngramsList.add(syntNgram);
+        	ngrams[i] = syntNgram;
         }
-        ngrams = ngramsList;
         
         total_count = in.readInt();						
         
@@ -108,7 +116,7 @@ public class SyntacticNgramLine implements Writable {
     public void write(DataOutput out) throws IOException {
         out.writeUTF(headWord);
         
-        out.writeInt(ngrams.size()); 				// 'Push' the size of the linked list in order to know how many elements to read
+        out.writeInt(ngrams.length); 				// 'Push' the size of the ngrams array in order to know how many elements to read
         for (SyntacticNgram syntNgram : ngrams) {
         	syntNgram.write(out);
         }
@@ -128,7 +136,7 @@ public class SyntacticNgramLine implements Writable {
 
     
     public String getheadWord() { return headWord; }
-    public List<SyntacticNgram> getNgramsList() { return ngrams; }
+    public SyntacticNgram[] getNgrams() { return ngrams; }
     public int getTotalCount() { return total_count; }
     public List<Pair<Integer, Integer>> getCountsByYear() { return counts_by_year; }
     

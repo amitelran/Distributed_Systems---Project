@@ -34,39 +34,12 @@ public class CooccurrencesVector implements Writable {
 	}
 
 
-	/*********** 	Add feature to co-occurrences vector	 ***********/
-
-
-	public void addFeature(String word, String dep_label) {
-
-		Map<String, Integer> depLabelMap = CooccurMap.get(word);
-
-		/* If dependancy label map already exists for 'word', update mapping to dep_label */
-
-		if (depLabelMap != null) {
-			if (depLabelMap.containsKey(dep_label)) {			// If dependancy label already exists for 'word' --> update count
-				int currCount = depLabelMap.get(dep_label);
-				depLabelMap.put(dep_label, currCount + 1);
-			}
-			else {
-				depLabelMap.put(dep_label, 1);					// If dependancy label doesn't exist for 'word' --> create entry
-			}
-		}
-
-		/* If 'value' dependancy labels map of the word doesn't exist --> create map, and store new entry of dependancy label with count 1 */
-
-		else {
-			depLabelMap = new HashMap<String, Integer>();
-			depLabelMap.put(dep_label, 1);
-		}
-	}
-
 
 	/*********** 	Write data to DataOutput	 ***********/
 
 
-	public void write(DataOutput out) throws IOException {
-
+	public void write(DataOutput out) throws IOException 
+	{
 		out.writeUTF(lexeme);
 
 		// Convert hash map into bytes array in order to write to DataOutput
@@ -92,13 +65,15 @@ public class CooccurrencesVector implements Writable {
 		}
 	}
 
+	
 
 	/*********** 	Read data from DataInput	 ***********/
 
+	
 
 	@SuppressWarnings("unchecked")
-	public void readFields(DataInput in) throws IOException {
-
+	public void readFields(DataInput in) throws IOException 
+	{
 		lexeme = in.readUTF();
 		int bytesArraySize = in.readInt();				// Read 'pushed' integer indicating size of bytes array
 		
@@ -112,7 +87,8 @@ public class CooccurrencesVector implements Writable {
 		try {
 			inputStream = new ObjectInputStream(bytesInputStream);
 			CooccurMap = (Map<String, Map<String, Integer>>) inputStream.readObject(); 
-		} catch (ClassNotFoundException e) {
+		} 
+		catch (ClassNotFoundException e) {
 			System.out.println("Error occurred while reading object from DataInput");
 		} 
 		finally {
@@ -126,6 +102,72 @@ public class CooccurrencesVector implements Writable {
 		}
 	}
 
+	
+	
+	/*********** 	Add feature to co-occurrences vector	 ***********/
+
+	
+
+	public void addFeature(String word, String dep_label, int total_count) {
+
+		Map<String, Integer> depLabelMap = CooccurMap.get(word);
+
+		/* If dependancy label map already exists for 'word', update mapping to dep_label */
+
+		if (depLabelMap != null) 
+		{
+			if (depLabelMap.containsKey(dep_label)) 				// If dependancy label already exists for 'word' --> update count
+			{				
+				int currCount = depLabelMap.get(dep_label);
+				depLabelMap.put(dep_label, currCount + total_count);
+			}
+			else {
+				depLabelMap.put(dep_label, total_count);			// If dependancy label doesn't exist for 'word' --> create entry
+			}
+		}
+
+		/* If null, then no mapping exists for this key --> create map for 'word' as key, and store new entry of dependancy label with total count */
+
+		else {
+			depLabelMap = new HashMap<String, Integer>();
+			depLabelMap.put(dep_label, total_count);
+			CooccurMap.put(word, depLabelMap);
+		}
+	}
+	
+	
+	
+	/*********** 	Deep copy all features (mappings) from another co-occurrences vector into co-occurrences vector 	 ***********/
+
+	
+	
+	public void copyFeatures(CooccurrencesVector otherVector) 
+	{
+		/*	Check lexemes correspondence before performing the copy operation	*/
+		if (otherVector.getLexeme() != this.lexeme) 
+		{
+			System.out.println("copyFeatures: Don't perform features copy, as different lexemes co-occurrences vectors");
+			return;
+		}
+		
+		
+		Map<String, Map<String, Integer>> otherMap = otherVector.getCooccurMap();			// Get other co-occurrences vector's map
+		
+		/*	Iterate through map to copy features from the other's map to our map	*/
+		
+		for (Map.Entry<String, Map<String, Integer>> feature : otherMap.entrySet()) 
+		{
+			String key = feature.getKey();							// The other word
+			Map<String, Integer> value = feature.getValue();		// <dependancy label, total count>
+			
+			for (Map.Entry<String, Integer> valueEntry : value.entrySet()) 			// Iterate through all mappings for current 'word' key
+			{
+				this.addFeature(key, valueEntry.getKey(), valueEntry.getValue());
+			}
+		}
+	}
+	
+	
 
 	/*********** 	Getters	 ***********/
 

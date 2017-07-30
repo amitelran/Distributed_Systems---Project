@@ -19,8 +19,8 @@ public class CooccurrencesVector implements Writable {
 
 	// Mapping of a word as the 'key', and Map of the form <dependancy label, count of performances> as the 'value' of the mappings
 	
-	protected Map<String, Map<String, Integer>> CooccurMap = new HashMap<String, Map<String, Integer>>();
-	protected String lexeme;
+	protected Map<Integer, Feature> coOccurMap = new HashMap<Integer, Feature>();
+	protected String word;
 
 
 	/*********** 	Constructors	 ***********/
@@ -30,7 +30,7 @@ public class CooccurrencesVector implements Writable {
 
 
 	public CooccurrencesVector(String word) {
-		this.lexeme = word;
+		this.word = word;
 	}
 
 
@@ -40,7 +40,7 @@ public class CooccurrencesVector implements Writable {
 
 	public void write(DataOutput out) throws IOException 
 	{
-		out.writeUTF(lexeme);
+		out.writeUTF(word);
 
 		// Convert hash map into bytes array in order to write to DataOutput
 
@@ -49,7 +49,7 @@ public class CooccurrencesVector implements Writable {
 
 		try {
 			outputConvert = new ObjectOutputStream(byteArrOutputStream);   
-			outputConvert.writeObject(CooccurMap);
+			outputConvert.writeObject(coOccurMap);
 			outputConvert.flush();
 			byte[] byteConvertedMap = byteArrOutputStream.toByteArray();
 
@@ -74,7 +74,7 @@ public class CooccurrencesVector implements Writable {
 	@SuppressWarnings("unchecked")
 	public void readFields(DataInput in) throws IOException 
 	{
-		lexeme = in.readUTF();
+		word = in.readUTF();
 		int bytesArraySize = in.readInt();				// Read 'pushed' integer indicating size of bytes array
 		
 		byte[] bytesArray = new byte[bytesArraySize];
@@ -86,7 +86,7 @@ public class CooccurrencesVector implements Writable {
 		ObjectInput inputStream = null;
 		try {
 			inputStream = new ObjectInputStream(bytesInputStream);
-			CooccurMap = (Map<String, Map<String, Integer>>) inputStream.readObject(); 
+			coOccurMap = (Map<Integer, Feature>) inputStream.readObject(); 
 		} 
 		catch (ClassNotFoundException e) {
 			System.out.println("Error occurred while reading object from DataInput");
@@ -108,30 +108,19 @@ public class CooccurrencesVector implements Writable {
 
 	
 
-	public void addFeature(String word, String dep_label, int total_count) {
+	public void addFeature(Feature feature) {
 
-		Map<String, Integer> depLabelMap = CooccurMap.get(word);
-
-		/* If dependancy label map already exists for 'word', update mapping to dep_label */
-
-		if (depLabelMap != null) 
-		{
-			if (depLabelMap.containsKey(dep_label)) 				// If dependancy label already exists for 'word' --> update count
-			{				
-				int currCount = depLabelMap.get(dep_label);
-				depLabelMap.put(dep_label, currCount + total_count);
-			}
-			else {
-				depLabelMap.put(dep_label, total_count);			// If dependancy label doesn't exist for 'word' --> create entry
-			}
+		int hashKey = Feature.getHashCode(feature.getWord(), feature.getDependancyLabel());
+		Feature currFeature = coOccurMap.get(hashKey);
+		
+		if (currFeature != null) {
+			int currCount = currFeature.getTotalCount();
+			currFeature.setTotalCount(currCount + feature.getTotalCount());
+			coOccurMap.put(hashKey, currFeature);
 		}
-
-		/* If null, then no mapping exists for this key --> create map for 'word' as key, and store new entry of dependancy label with total count */
-
+		
 		else {
-			depLabelMap = new HashMap<String, Integer>();
-			depLabelMap.put(dep_label, total_count);
-			CooccurMap.put(word, depLabelMap);
+			coOccurMap.put(hashKey, feature);
 		}
 	}
 	
@@ -144,26 +133,20 @@ public class CooccurrencesVector implements Writable {
 	public void copyFeatures(CooccurrencesVector otherVector) 
 	{
 		/*	Check lexemes correspondence before performing the copy operation	*/
-		if (otherVector.getLexeme() != this.lexeme) 
+		if (!this.word.equals(otherVector.getWord())) 
 		{
 			System.out.println("copyFeatures: Don't perform features copy, as different lexemes co-occurrences vectors");
 			return;
 		}
 		
-		
-		Map<String, Map<String, Integer>> otherMap = otherVector.getCooccurMap();			// Get other co-occurrences vector's map
+		Map<Integer, Feature> otherMap = otherVector.getCoOccurMap();			// Get other co-occurrences vector's map
 		
 		/*	Iterate through map to copy features from the other's map to our map	*/
 		
-		for (Map.Entry<String, Map<String, Integer>> feature : otherMap.entrySet()) 
+		for (Map.Entry<Integer, Feature> entry : otherMap.entrySet()) 
 		{
-			String key = feature.getKey();							// The other word
-			Map<String, Integer> value = feature.getValue();		// <dependancy label, total count>
-			
-			for (Map.Entry<String, Integer> valueEntry : value.entrySet()) 			// Iterate through all mappings for current 'word' key
-			{
-				this.addFeature(key, valueEntry.getKey(), valueEntry.getValue());
-			}
+			Feature feature = entry.getValue();						// <other word, dependancy label, total count>
+			this.addFeature(feature);
 		}
 	}
 	
@@ -172,8 +155,8 @@ public class CooccurrencesVector implements Writable {
 	/*********** 	Getters	 ***********/
 
 
-	public String getLexeme() { return lexeme; }
-	public Map<String, Map<String, Integer>> getCooccurMap() { return CooccurMap; }
+	public String getWord() { return this.word; }
+	public Map<Integer, Feature> getCoOccurMap() { return coOccurMap; }
 
 
 	/*********** 	To string	 ***********/

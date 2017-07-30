@@ -26,17 +26,17 @@ public class SyntacticNgram implements Writable {
     	for (int i = 0; i < ngramSplit.length; i++) {
     		System.out.println(ngramSplit[i]);
     	}
-    	word = ngramSplit[0];
-    	pos_tag = ngramSplit[1];
-    	dep_label = ngramSplit[2];
+    	word = ngramSplit[0].toLowerCase();
+    	pos_tag = ngramSplit[1].toLowerCase();
+    	dep_label = ngramSplit[2].toLowerCase();
     	head_index = Integer.parseInt(ngramSplit[3]);
     }
     
     
     public SyntacticNgram(SyntacticNgram other) {
-    	word = other.getWord();
-    	pos_tag = other.getPosTag();
-    	dep_label = other.getDependancyLabel();
+    	word = other.getWord().toLowerCase();
+    	pos_tag = other.getPosTag().toLowerCase();
+    	dep_label = other.getDependancyLabel().toLowerCase();
     	head_index = other.getHeadIndex();
     }
     

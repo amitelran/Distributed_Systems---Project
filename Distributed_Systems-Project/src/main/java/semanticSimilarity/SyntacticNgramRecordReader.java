@@ -3,6 +3,7 @@ package semanticSimilarity;
 
 import java.io.IOException;
 
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -20,13 +21,13 @@ import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
  * Reference to help understand : https://github.com/alexholmes/hadoop-book/blob/master/src/main/java/com/manning/hip/ch3/json/JsonInputFormat.java
  */
 
-public class SyntacticNgramRecordReader extends RecordReader<String, SyntacticNgramLine> { 
+public class SyntacticNgramRecordReader extends RecordReader<Text, SyntacticNgramLine> { 
  
 	// LineRecordReader extracts keys and values from a given text file split, 
 	// where the keys are the positions of the lines and the values are the content of the line
 	
     LineRecordReader reader;
-    String headWord;
+    Text headWord;
     SyntacticNgramLine ngram;
         
     
@@ -60,7 +61,7 @@ public class SyntacticNgramRecordReader extends RecordReader<String, SyntacticNg
         while(reader.nextKeyValue()){
         	try{
         		ngram = new SyntacticNgramLine(reader.getCurrentValue().toString());
-        		headWord = ngram.headWord;
+        		headWord = new Text(ngram.getheadWord());
         		return true;
         	}
         	catch(Exception e){
@@ -76,7 +77,7 @@ public class SyntacticNgramRecordReader extends RecordReader<String, SyntacticNg
     // The reader reads the current value/line (which is a Text object)
     
     @Override
-    public String getCurrentKey() {
+    public Text getCurrentKey() {
     	return headWord;
     }
     

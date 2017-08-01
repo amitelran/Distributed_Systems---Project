@@ -4,32 +4,49 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Cluster;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
+
+
 
 public class CooccurrencesVectorsHadoop {
 
 
+	/***********************************************************************************************************/
+	/******************************************** 	Global counters	 *******************************************/
+
+
+	public static enum GLOBAL_COUNTERS {
+		NUM_OF_LEXEMES,
+		NUM_OF_FEATURES,
+	};
+
+
 	/*******************************************************************************************************/
-	/*********** 	Mapper class for creating co-occurrences vectors per Syntactic Ngram line	 ***********/
+	/******************************************** 	Mapper A	 *******************************************/
 
 
-	public static class CooccurrencesVectorMapper extends Mapper<String, SyntacticNgramLine, String, CooccurrencesVector> {
+	public static class TokenizerMapper extends Mapper<Text, SyntacticNgramLine, Text, IntWritable> {
 
 		private Set<String> goldStandardWords = new HashSet<String>();
 		Stemmer stemmer = new Stemmer();
+		private Text token = new Text();
+		private IntWritable total_count = new IntWritable();
 
-		
-		
+
+
 		/*********** 	Read gold standard dataset words before starting the mapper	 ***********/
 
-		
+
 		@Override
 		protected void setup(Context context) throws IOException, InterruptedException 
 		{
@@ -47,11 +64,11 @@ public class CooccurrencesVectorsHadoop {
 				System.out.println(">>>>>> NO CACHE FILES AT ALL");
 			}
 		}
-		
-		
+
+
 		/*********** 	Read gold standard dataset file	 ***********/
 
-		
+
 		private void readGoldStandardFile(String path) {
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
@@ -70,24 +87,20 @@ public class CooccurrencesVectorsHadoop {
 				System.err.println("Exception while reading gold standard dataset file: " + ex.getMessage());
 			}
 		}
-		
-		
-		
-		/*******************************************	Mapper	 ***********************************************/
-		
-		
-		// input: 		ngram head word, 	syntactic ngram line
-		// output: 		lexeme, 	lexeme's co-occurrences vector
 
-		
-		public void map(String headWord, SyntacticNgramLine ngramLine, Context context) throws IOException,  InterruptedException 
+
+
+		/*******************************************	map	 ***********************************************/
+
+
+		// input: 		key: ngram head word, 						value: syntactic ngram line
+		// output: 		key: lexeme | feature | <lexeme, feature>, 	value: total count as indicated in ngram line
+
+
+		public void map(Text headWord, SyntacticNgramLine ngramLine, Context context) throws IOException,  InterruptedException 
 		{
-
-			Map<String, CooccurrencesVector> CooccurVectorMap = new HashMap<String, CooccurrencesVector>();		// Local hash map for producing co-occurrences vectors
 			SyntacticNgram[] ngrams = ngramLine.getNgrams();			// Extract syntactic ngrams array for multiple uses
-			int total_count = ngramLine.getTotalCount();				// Extract total count integer for multiple uses
-
-			/*	Co-occurrences vectors creation/update for each of the syntactic ngrams in "ngrmams" */
+			total_count.set(ngramLine.getTotalCount());					// Extract total count integer for multiple uses
 
 			for (int i = 0; i < ngrams.length; i++) 
 			{
@@ -103,62 +116,265 @@ public class CooccurrencesVectorsHadoop {
 				if (!(goldStandardWords.contains(headIndexWord))) {
 					continue;
 				}
-				
+
 				currWord = Stemmer.stemWord(currWord);									// Stem current word
 
-				CooccurrencesVector CooccurVector = CooccurVectorMap.get(headIndexWord);
+				token.set(headIndexWord);												// Send lexeme and total count
+				context.write(token, total_count);
+				context.getCounter(GLOBAL_COUNTERS.NUM_OF_LEXEMES).increment(total_count.get());
 
-				// If co-occurrences vector of the head-index already exists --> update with feature
-				if (CooccurVector != null) {
-					CooccurVector.addFeature(new Feature(currWord, dependancyLabel, total_count));
-				}
+				token.set(currWord + "-" + dependancyLabel);							// Send feature (word-dep_label) and total count
+				context.write(token, total_count);
+				context.getCounter(GLOBAL_COUNTERS.NUM_OF_FEATURES).increment(total_count.get());
 
-				// Co-occurrences vector of the head-index doesn't exist --> create it, and update with feature
-				else {
-					CooccurVector = new CooccurrencesVector(headIndexWord);
-					CooccurVector.addFeature(new Feature(currWord, dependancyLabel, total_count));
-					CooccurVectorMap.put(headIndexWord, CooccurVector);
-				}
+				token.set(headIndexWord + "," + currWord + "-" + dependancyLabel);		// Send "lexeme, feature" and total count
+				context.write(token, total_count);
+
 			}
 
-
-			/*	Write co-occurrences vectors to context	*/
-
-			for (Map.Entry<String, CooccurrencesVector> vectorEntry : CooccurVectorMap.entrySet()) {
-				context.write(vectorEntry.getKey(), vectorEntry.getValue());
-			}
 		}
 	}
+
+
 
 
 	/*******************************************************************************************************/
-	/*********** 	Reducer class for unifying co-occurrences vectors of Syntactic Ngram lines	 ***********/
+	/******************************************** 	Reducer A	 *******************************************/
 
 
-	public static class CooccurrencesVectorReducer extends Reducer<String, CooccurrencesVector, String, CooccurrencesVector> {
+	public static class TokenizerSumReducer extends Reducer<Text, IntWritable, Text, IntWritable> {	
 
-		long numOfValues = 0;
+		// input: 		key: lexeme | feature | <lexeme, feature>, 		value: Iterable<counts>
+		// output: 		key: lexeme | feature | <lexeme, feature>, 		value: summed count
 
-		// input: 		word, 	list of Co-occurrences vectors
-		// output: 		word, 	unified co-occurrences vector
 
-		public void reduce(String word, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
+		public void reduce(Text key, Iterable<IntWritable> counts, Context context) throws IOException, InterruptedException 
 		{
-			CooccurrencesVector sumVector = new CooccurrencesVector(word);
-
-			/*	Iterate over all co-occurrences vectors and unify them to a single co-occurrences vector	*/
-
-			for (Iterator<CooccurrencesVector> i = vectors.iterator(); i.hasNext();)
-			{
-				CooccurrencesVector vector = i.next();
-				numOfValues++;
-				sumVector.copyFeatures(vector);
+			int sum = 0;
+			for (IntWritable count : counts) {
+				sum += count.get();
 			}
-
-			context.write(word, sumVector);
+			context.write(key, new IntWritable(sum));
 		}
 	}
 
+
+
+
+	/********************************************************************************************************************************************/
+
+
+
+
+	/*******************************************************************************************************/
+	/******************************************** 	Mapper B	 *******************************************/
+
+
+	public static class PairSplitMapper extends Mapper<Text, IntWritable, PairWritable, Text> {
+
+
+		private PairWritable pair = new PairWritable();
+		private Text value = new Text();
+		private Text asterixFlag = new Text("*");
+
+
+		// input: 		key: lexeme | feature | <lexeme, feature>, 					value: summed count
+		// output: 		key: <lexeme, '*'> | <feature, '*'> | <lexeme, "1">, 		value: summed count | <feature, total count lexeme \w feature>
+		//-----------------------------------------------------------> "1" value is not important, just a filler
+
+
+		public void map(Text token, IntWritable total_count, Context context) throws IOException,  InterruptedException 
+		{
+			String key = token.toString();
+
+			// Case token is of form: lexeme, word-dep_label --> split to make lexeme the key, and add feature to the value
+			if (key.contains(",")) {
+				String[] split = key.split(",");
+				pair.setFirst(new Text(split[0]));								// create pair: <lexeme, "not-important">
+				pair.setSecond(new Text("1"));									// Second in pair is not important
+				value.set(split[1] + "," + total_count.toString());  			// create: "feature, count"
+			}
+
+			// Case token is lexeme only or feature only
+			else {
+				pair.setFirst(token); 											// create pair: <lexeme, '*'> or <feature, '*'>
+				pair.setSecond(asterixFlag);
+				value.set(total_count.toString());								// create value: total_count
+			}
+
+			context.write(pair, value);
+		}
+	}
+
+
+
+	/*******************************************************************************************************/
+	/********************************** 	Partitioner for MapReduce B	 **************************************/
+
+
+	// Custom partitioner to ensure pairs of the same left element are partitioned to the same reducer
+
+
+	public class PairWritablePartitioner extends Partitioner<PairWritable,Text> {
+
+		@Override
+		public int getPartition(PairWritable keyPair, Text value, int numPartitions) {
+			return keyPair.getFirst().hashCode() % numPartitions;
+		}
+	}
+
+
+
+	/*******************************************************************************************************/
+	/******************************************** 	Reducer B	 *******************************************/
+
+
+
+	public static class FeatureInfoReducer extends Reducer<PairWritable, Text, PairWritable, Text> {	
+
+
+		private Text asterixFlag = new Text("*");
+		private PairWritable pair = new PairWritable(null, new Text("1"));
+		private String totalLexemeCount;
+		private String lexeme;
+
+		// input: 		key: <feature, '*'> | <lexeme, '*'> | <lexeme, "1">, 		value: Iterable<summed count> | Iterable<<feature, total count lexeme & feature>>
+		// output: 		key: <feature, '*'> | feature, 		value: total count of feature | <lexeme, lexeme&feature count, lexeme's total count>
+
+
+		public void reduce(PairWritable keyPair, Iterable<Text> countsOrFeatures, Context context) throws IOException, InterruptedException 
+		{
+			int sum = 0;
+
+			// Case of: <something, '*'> --> '*' pair should be first in order
+			if (keyPair.getSecond().equals(asterixFlag)) 			
+			{
+				// Case the input key is of a feature
+				if (keyPair.getFirst().toString().contains("-")) {
+					for (Text value : countsOrFeatures) {
+						sum = Integer.parseInt(value.toString());
+						break;
+					}
+					context.write(keyPair, new Text(Integer.toString(sum)));	// Simply write as it is
+				}
+
+				// Case the input key is of a lexeme --> Get the total lexeme count for future uses
+				else {
+					for (Text value : countsOrFeatures) {
+						totalLexemeCount = value.toString();
+						break;
+					}
+				}
+
+			}
+
+			// case of: <lexeme, '1'>
+			else {
+				lexeme = keyPair.getFirst().toString();
+				for (Text value : countsOrFeatures) 
+				{
+					String[] split = value.toString().split(",");					// split[0] = feature, split[1] = lexeme & feature count
+					pair.setFirst(new Text(split[0])); 								// Set <feature, '1'>
+					context.write(pair, new Text(lexeme + "," + split[1] + "," + totalLexemeCount));	// value: <lexeme, lexeme & feature count, lexeme's total count>
+				}
+			}	
+		}
+	}
+
+
+
+
+	/********************************************************************************************************************************************/
+
+
+
+	/*******************************************************************************************************/
+	/******************************************** 	Mapper C	 *******************************************/
+
+	// Passes data on to the reducer
+
+
+	public static class MapperC extends Mapper<PairWritable, Text, PairWritable, Text> {
+
+		// input: 		key: <feature, '*'> | <feature, '1'>, 			value: summed count | <lexeme, lexeme&feature count, lexeme's total count>
+		// output: 		key: <feature, '*'> | <feature, '1'>, 			value: summed count | <lexeme, lexeme&feature count, lexeme's total count>
+
+
+		public void map(PairWritable key, Text value, Context context) throws IOException,  InterruptedException 
+		{
+			context.write(key, value);
+		}
+	}
+
+
+
+
+	/*******************************************************************************************************/
+	/******************************************** 	Reducer C	 *******************************************/
+
+
+	public static class MeasuresOfAssocWithContextReducer extends Reducer<PairWritable, Text, Text, Feature> {
+
+		private Text asterixFlag = new Text("*");
+		private int totalFeatureCount = 0;
+		private long totalLexemesCorpus = 0;
+		private long totalFeaturesCorpus = 0;
+
+
+		/*******************************************	Setup to get Global Counters	 ***********************************************/
+
+
+		@Override
+		public void setup(Context context) throws IOException, InterruptedException{
+			Configuration conf = context.getConfiguration();
+			Cluster cluster = new Cluster(conf);
+			Job currentJob = cluster.getJob(context.getJobID());
+			//Counters counters = currentJob.getCounters();
+			totalLexemesCorpus = currentJob.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_LEXEMES).getValue();		// Get overall counter of all lexemes
+			totalFeaturesCorpus = currentJob.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_FEATURES).getValue();	// Get overall counter of all features
+		}
+
+
+		/*******************************************	Reduce C	 ***********************************************/
+
+
+		// input: 		key: <feature, '*'> | <feature, '1'>, 	value: Iterable<summed count> | Iterable<<lexeme, lexeme&feature count, lexeme's total count>>
+		// output: 		key: feature, 							value: Feature data structure containing all computed measures
+
+
+		public void reduce(PairWritable featureKey, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+		{
+
+			// Case of: <feature, '*'> --> '*' pair should be first in order
+			if (featureKey.getSecond().equals(asterixFlag)) 			
+			{
+				for (Text value : values) {
+					totalFeatureCount = Integer.parseInt(value.toString());
+					break;
+				}
+			}
+
+			// Case of: <feature, '1'> --> containing in value <lexeme, lexeme&feature count, lexeme's total count>
+			else {
+				for (Text value : values) 
+				{
+					String[] split = value.toString().split(",");	// split[0] = lexeme, split[1] = lexeme&feature count, split[2] = lexeme's total count
+					Feature feature = new Feature(featureKey.getFirst(), split[0], totalFeatureCount, Integer.parseInt(split[2]));
+					feature.computeAllMeasures(Integer.parseInt(split[1]), totalLexemesCorpus, totalFeaturesCorpus);
+					context.write(featureKey.getFirst(), feature);
+				}
+			}
+		}
+	}
 }
+
+
+
+
+
+
+
+
+
 
 

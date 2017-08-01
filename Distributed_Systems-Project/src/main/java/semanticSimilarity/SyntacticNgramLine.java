@@ -7,12 +7,13 @@ import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable; 
  
 
 public class SyntacticNgramLine implements Writable {
         
-    protected String headWord;															// The word which is the syntactic tree's root
+    protected Text headWord;															// The word which is the syntactic tree's root
     protected SyntacticNgram[] ngrams;													// Array of all syntactic ngrams in given line
     protected int total_count;															// Total counts as summed in the years
     protected List<Pair<Integer, Integer>> counts_by_year = new LinkedList<Pair<Integer, Integer>>();				// Each element in the list is of form: <year, counts for year>
@@ -35,7 +36,7 @@ public class SyntacticNgramLine implements Writable {
     		System.out.println(lineSplit[i]);
     	}
     	
-        headWord = lineSplit[0]; 
+        headWord = new Text(lineSplit[0]); 
         
         String[] synNgramsSplit = lineSplit[1].split("\\s+");		// Split syntactic ngrams by whitespace (every split is of form "word/pos-tag/dep-label/head-index")
         ngrams = new SyntacticNgram[synNgramsSplit.length];
@@ -87,7 +88,7 @@ public class SyntacticNgramLine implements Writable {
     
     
     public void readFields(DataInput in) throws IOException {
-        headWord = in.readUTF();
+        headWord = new Text(in.readUTF());
         
         int ngramsSize = in.readInt();					// First, read 'pushed' size of ngrams array
         ngrams = new SyntacticNgram[ngramsSize];
@@ -114,7 +115,7 @@ public class SyntacticNgramLine implements Writable {
     
     
     public void write(DataOutput out) throws IOException {
-        out.writeUTF(headWord);
+        out.writeUTF(headWord.toString());
         
         out.writeInt(ngrams.length); 				// 'Push' the size of the ngrams array in order to know how many elements to read
         for (SyntacticNgram syntNgram : ngrams) {
@@ -135,7 +136,7 @@ public class SyntacticNgramLine implements Writable {
     /**********************************	 Getters  **********************************/
 
     
-    public String getheadWord() { return headWord; }
+    public Text getheadWord() { return headWord; }
     public SyntacticNgram[] getNgrams() { return ngrams; }
     public int getTotalCount() { return total_count; }
     public List<Pair<Integer, Integer>> getCountsByYear() { return counts_by_year; }

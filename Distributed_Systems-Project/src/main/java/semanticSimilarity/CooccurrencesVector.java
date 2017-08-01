@@ -17,9 +17,8 @@ import org.apache.hadoop.io.Writable;
 
 public class CooccurrencesVector implements Writable {
 
-	// Mapping of a word as the 'key', and Map of the form <dependancy label, count of performances> as the 'value' of the mappings
 	
-	protected Map<Integer, Feature> coOccurMap = new HashMap<Integer, Feature>();
+	protected Map<Integer, Feature> coOccurMap = new HashMap<Integer, Feature>(); 	// Mapping of a hash code as the 'key', and Features as the 'value
 	protected String word;
 
 
@@ -107,23 +106,27 @@ public class CooccurrencesVector implements Writable {
 	/*********** 	Add feature to co-occurrences vector	 ***********/
 
 	
-
+	/*
 	public void addFeature(Feature feature) {
 
-		int hashKey = Feature.getHashCode(feature.getWord(), feature.getDependancyLabel());
-		Feature currFeature = coOccurMap.get(hashKey);
+		int hashKey = Feature.getHashCode(feature.getWord(), feature.getDependancyLabel());		// Get hash code value (which is the key to the entry in the hash map)
+		Feature currFeature = coOccurMap.get(hashKey);											// Get the current feature in the hash map (if exists)
 		
+		/* Feature exists in hash map --> update total count of feature */
+		/*
 		if (currFeature != null) {
 			int currCount = currFeature.getTotalCount();
 			currFeature.setTotalCount(currCount + feature.getTotalCount());
 			coOccurMap.put(hashKey, currFeature);
 		}
 		
+		/* Feature doesn't exist in hash map --> Add feature to the hash map */
+		/*
 		else {
 			coOccurMap.put(hashKey, feature);
 		}
 	}
-	
+	*/
 	
 	
 	/*********** 	Deep copy all features (mappings) from another co-occurrences vector into co-occurrences vector 	 ***********/
@@ -146,7 +149,7 @@ public class CooccurrencesVector implements Writable {
 		for (Map.Entry<Integer, Feature> entry : otherMap.entrySet()) 
 		{
 			Feature feature = entry.getValue();						// <other word, dependancy label, total count>
-			this.addFeature(feature);
+			//this.addFeature(feature);
 		}
 	}
 	

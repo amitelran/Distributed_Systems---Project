@@ -1,6 +1,5 @@
 package semanticSimilarity;
 
-
 /*********** 	Generic Pair class for different uses	 ***********/
 
 public class Pair<F, S> {
@@ -39,6 +38,36 @@ public class Pair<F, S> {
     public void printPair() {
     	System.out.println("First: " + this.first + " Second: " + this.second);
     }
+   
+    
+    
+   
+    
+    
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+        	return true;
+        }
+        
+        if (other == null || getClass() != other.getClass()) {
+        	return false;
+        }
+
+        @SuppressWarnings("unchecked")
+		Pair<F,S> otherPair = (Pair<F,S>) other;
+
+        if (second != null ? !second.equals(otherPair.getSecond()) : otherPair.getSecond() != null) {
+        	return false;
+        }
+        if (first != null ? !first.equals(otherPair.getFirst()) : otherPair.getFirst() != null) {
+        	return false;
+        }
+
+        return true;
+    }
+
+   
     
     
 }

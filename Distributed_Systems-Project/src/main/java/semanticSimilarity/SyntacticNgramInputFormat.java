@@ -1,6 +1,7 @@
 package semanticSimilarity;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -13,12 +14,12 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 // InputFormat describes the input-specification for a Map-Reduce job.
 // FileInputFormat is a base class for file-based InputFormats
 
-public class SyntacticNgramInputFormat extends FileInputFormat<String, SyntacticNgramLine> {
+public class SyntacticNgramInputFormat extends FileInputFormat<Text, SyntacticNgramLine> {
 
 
 	// Create a record reader for a given split.
 	@Override
-	public RecordReader<String, SyntacticNgramLine> createRecordReader(InputSplit split, TaskAttemptContext context) {
+	public RecordReader<Text, SyntacticNgramLine> createRecordReader(InputSplit split, TaskAttemptContext context) {
 		return new SyntacticNgramRecordReader();
 	}
 

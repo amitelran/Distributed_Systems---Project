@@ -4,17 +4,22 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class Feature {
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
+
+
+public class Feature implements WritableComparable<Feature> {
 	
-	protected String word;
-	protected String dep_label;
-	protected int total_count;
+	protected Text feature;
+	protected String lexeme;
+	protected int feature_total_independent_count;
+	protected int lexeme_total_independent_count;
 	
 	// Measures of association with context
-	protected int raw_frequency = -1;
+	protected int raw_frequency = -1;				// Frequency of feature & lexeme appearances = count(F=f, L=l)
 	protected float relative_frequency = -1;
-	protected float pmi = -1;						// Pointwise Mutual Information
-	protected float t_test = -1;
+	protected double pmi = -1;						// Pointwise Mutual Information
+	protected double t_test = -1;
 	
 	
 	/*********** 	Constructors	 ***********/
@@ -23,10 +28,12 @@ public class Feature {
 	Feature(){}
 	
 	
-	Feature(String word, String dep_label, int total_count) {
-		this.word = word;
-		this.dep_label = dep_label;
-		this.total_count = total_count;
+	Feature(Text feature, String lexeme, int total_count_of_feature, int total_count_of_lexeme) 
+	{
+		this.feature = feature;
+		this.lexeme = lexeme;
+		this.feature_total_independent_count = total_count_of_feature;
+		this.lexeme_total_independent_count = total_count_of_lexeme;
 	}
 	
 	
@@ -36,13 +43,14 @@ public class Feature {
 
 	public void write(DataOutput out) throws IOException 
 	{
-		out.writeUTF(word);
-		out.writeUTF(dep_label);
-		out.writeInt(total_count);
+		out.writeUTF(feature.toString());
+		out.writeUTF(lexeme);
+		out.writeInt(feature_total_independent_count);
+		out.writeInt(lexeme_total_independent_count);
 		out.writeInt(raw_frequency);
 		out.writeFloat(relative_frequency);
-		out.writeFloat(pmi);
-		out.writeFloat(t_test);
+		out.writeDouble(pmi);
+		out.writeDouble(t_test);
 	}
 
 	
@@ -52,13 +60,14 @@ public class Feature {
 	
 	public void readFields(DataInput in) throws IOException 
 	{
-		word = in.readUTF();
-		dep_label = in.readUTF();
-		total_count = in.readInt();
+		feature.set(in.readUTF());
+		lexeme = in.readUTF();
+		feature_total_independent_count = in.readInt();
+		lexeme_total_independent_count = in.readInt();
 		raw_frequency = in.readInt();
 		relative_frequency = in.readFloat();
-		pmi = in.readFloat();
-		t_test = in.readFloat();
+		pmi = in.readDouble();
+		t_test = in.readDouble();
 	}
 
 	
@@ -75,9 +84,10 @@ public class Feature {
 		if (!(other instanceof Feature)) {
 			return false;
 		}
-		String otherWord = ((Feature) other).getWord();
-		String otherDepLabel = ((Feature) other).getDependancyLabel();
-		return ((word.equals(otherWord)) && (dep_label.equals(otherDepLabel)));
+		Text otherFeature = ((Feature) other).getFeature();
+		//String otherLexeme = ((Feature) other).getLexeme();
+		//return ((word.equals(otherWord)) && (dep_label.equals(otherDepLabel)));
+		return (feature.equals(otherFeature));
 	}
 	
 	
@@ -89,8 +99,7 @@ public class Feature {
 	@Override
 	public int hashCode() {
 		int result = 17;
-        result = 31 * result + word.hashCode();
-        result = 31 * result + dep_label.hashCode();
+        result = 31 * result + feature.hashCode();
         return result;
 	}
 	
@@ -107,46 +116,83 @@ public class Feature {
 	/*********** 	Compute measures of association with context	 ***********/
 	
 	
-	public void computeRelativeFrequency(int lemmataCounts) {
-		relative_frequency = (raw_frequency / lemmataCounts);
+	public void computeAllMeasures(int featureAndLexemeFrequency, long totalLexemesInCorpus, long totalFeaturesInCorpus) 
+	{
+		raw_frequency = featureAndLexemeFrequency;
+		computeRelativeFrequency();
+		compute_PMI_and_Ttest(totalLexemesInCorpus, totalFeaturesInCorpus);
 	}
 	
 	
-	public void computePMI( ) {
+	
+	public void computeRelativeFrequency() 
+	{
+		relative_frequency = (raw_frequency / lexeme_total_independent_count);
+	}
+	
+	
+	public void compute_PMI_and_Ttest(long totalLexemesInCorpus, long totalFeaturesInCorpus ) 
+	{
+		/* PMI */
 		
+		float probability_of_lexeme = (lexeme_total_independent_count / totalLexemesInCorpus);		// P(l) = count(L=l) / count(L)
+		float probability_of_feature = (feature_total_independent_count / totalFeaturesInCorpus);	// P(f) = count(F=f) / count(F)
+		float probablity_multiplication = probability_of_lexeme * probability_of_feature;			// P(l) * P(f)
+		float joined_prob_lexeme_feature = (raw_frequency / totalLexemesInCorpus);					// P(l,f) = count(F=f, L=l) / count(L)
+		float div_joined_mult = (joined_prob_lexeme_feature / probablity_multiplication);			// P(l,f) / P(f)P(l)
+		pmi = (Math.log(div_joined_mult) / Math.log(2));											// log2[P(l,f) / P(f)P(l)]
+		
+		/* T-test */
+		
+		float numerator = joined_prob_lexeme_feature - probablity_multiplication;					// P(l,f) - P(l)P(f)
+		double rooted_denominator = Math.sqrt(probablity_multiplication); 							// sqrt(P(l)P(f))
+		t_test = (numerator / rooted_denominator); 													// [P(l,f) - P(l)P(f)] / [sqrt(P(l)P(f)]
 	}
 
-
-	public void computeTtest() {
-		
-	}
 	
 
 	
 	/*********** 	Getters	 ***********/
 
 
-	public String getWord() { return this.word; }
-	public String getDependancyLabel() { return this.dep_label; }
-	public int getTotalCount() { return this.total_count; }
+	public Text getFeature() { return this.feature; }
+	public String getLexeme() { return this.lexeme; }
+	public int getTotalIndependentCountOfFeature() { return this.feature_total_independent_count; }
+	public int getTotalIndependentCountOfLexeme() { return this.lexeme_total_independent_count; }
 	public int getRawFrequency() { return this.raw_frequency; }
 	public float getRelativeFrequency() { return this.relative_frequency; }
-	public float getPMI() { return this.pmi; }
-	public float getTtest() { return this.t_test; }
+	public double getPMI() { return this.pmi; }
+	public double getTtest() { return this.t_test; }
 	
 	
 	/*********** 	Setters	 ***********/
 
 	
-	public void setTotalCount(int newCount) { this.total_count = newCount; }
+	public void setFeatureTotalCount(int featureCount) { this.feature_total_independent_count = featureCount; }
+	public void setLexemeTotalCount(int lexemeCount) { this.lexeme_total_independent_count = lexemeCount; }
 
 	
 
-	/*********** 	To string	 ***********/
+	/*********** 	To String	 ***********/
 
 	
 	@Override
 	public String toString(){
 		return "";
 	}
+	
+	
+	
+	/*********** 	CompareTo	 ***********/
+	
+
+	public int compareTo(Feature other) {
+		int checkArg = this.feature.toString().compareTo(other.getFeature().toString());
+    	if (checkArg != 0) {
+    		return checkArg;
+    	}
+		return (this.lexeme.compareTo(other.getLexeme()));
+	}
+	
+	
 }

@@ -14,6 +14,8 @@ public class SyntacticNgram implements Writable {
     protected String dep_label;				// Dependency Label
     protected int head_index;				// The word's head index in the syntactic ngram list
     
+    protected boolean writtenToContext;		// If lexeme --> boolean if already written to context
+    
     
     /***************	 Constructor - receives a Stringed ngram, and parses it to a syntactic ngram object	 ***************/
 
@@ -30,6 +32,7 @@ public class SyntacticNgram implements Writable {
     	pos_tag = ngramSplit[1].toLowerCase();
     	dep_label = ngramSplit[2].toLowerCase();
     	head_index = Integer.parseInt(ngramSplit[3]);
+    	writtenToContext = false;
     }
     
     
@@ -69,8 +72,20 @@ public class SyntacticNgram implements Writable {
     public String getPosTag() { return pos_tag; }
     public String getDependancyLabel() { return dep_label; }
     public int getHeadIndex() { return head_index; }
+    public boolean isWritten() { return writtenToContext; }
     
     
+    
+    /**********************************	 Setters  **********************************/
+    
+    
+    public void setWritten() { this.writtenToContext = true; }
+    public void setNotWritten() { this.writtenToContext = false; }
+    
+    
+    
+    /**********************************	 To String  **********************************/
+
     
     @Override
     public String toString(){

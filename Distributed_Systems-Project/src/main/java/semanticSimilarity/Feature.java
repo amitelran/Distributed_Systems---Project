@@ -178,9 +178,15 @@ public class Feature implements WritableComparable<Feature> {
 	
 	@Override
 	public String toString(){
-		return "";
+		return "Feature: " + feature.toString() + ", " + 
+				"Lexeme: " + lexeme + ", " + 
+				"Independent Count of feature: " + Integer.toString(feature_total_independent_count) + ", " + 
+				"Independent Count of lexeme: " + Integer.toString(lexeme_total_independent_count) + ", " +
+				"Lexeme & Feature: " + Integer.toString(raw_frequency) + ", " +
+				"Relative Frequency: " + Float.toString(relative_frequency) + ", " +
+				"PMI: " + Double.toString(pmi) + ", " + 
+				"T_Test: " + Double.toString(t_test) + "\n";
 	}
-	
 	
 	
 	/*********** 	CompareTo	 ***********/

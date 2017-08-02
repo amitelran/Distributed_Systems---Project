@@ -51,7 +51,7 @@ public class SemanticSimilarityApp {
 	public static int NUM_FILES_CORPUS = 1;					// Determine number of input Google N-gram files to go over in corpus
 	public static String INPUT_BUCKET_NAME = "";
 	public static String OUTPUTFILENAME = "output.txt";
-	public static String BUCKET_NAME = "yoav.amit.DSPproject";
+	public static String BUCKET_NAME = "yoav.amit.dsp-project";
 	
 	
 

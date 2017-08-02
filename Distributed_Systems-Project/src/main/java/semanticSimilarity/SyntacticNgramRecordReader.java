@@ -58,8 +58,8 @@ public class SyntacticNgramRecordReader extends RecordReader<Text, SyntacticNgra
     
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-        while(reader.nextKeyValue()){
-        	try{
+        while(reader.nextKeyValue()) {
+        	try {
         		ngram = new SyntacticNgramLine(reader.getCurrentValue().toString());
         		headWord = new Text(ngram.getheadWord());
         		return true;

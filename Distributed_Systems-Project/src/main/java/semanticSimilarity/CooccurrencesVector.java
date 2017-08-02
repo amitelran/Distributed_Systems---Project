@@ -12,24 +12,32 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 
 
-public class CooccurrencesVector implements Writable {
+public class CooccurrencesVector implements WritableComparable<CooccurrencesVector> {
+
+	protected Text lexeme;
+	protected Map<Feature, MeasuresWritable> featuresMap = new HashMap<Feature, MeasuresWritable>(); 	// Mapping of a hash code as the 'key', and Features as the 'value
+
+	// Lexeme's vector norm according to each measure of association with context
+	protected double normRawFrequency = -1;
+	protected double normRelativeFrequency = -1;
+	protected double normPMI = -1;
+	protected double normTtest = -1;
 
 	
-	protected Map<Integer, Feature> coOccurMap = new HashMap<Integer, Feature>(); 	// Mapping of a hash code as the 'key', and Features as the 'value
-	protected String word;
-
-
+	
 	/*********** 	Constructors	 ***********/
 
 
 	public CooccurrencesVector(){}
 
 
-	public CooccurrencesVector(String word) {
-		this.word = word;
+	public CooccurrencesVector(Text lexeme) {
+		this.lexeme = lexeme;
 	}
 
 
@@ -39,7 +47,7 @@ public class CooccurrencesVector implements Writable {
 
 	public void write(DataOutput out) throws IOException 
 	{
-		out.writeUTF(word);
+		out.writeUTF(lexeme.toString());
 
 		// Convert hash map into bytes array in order to write to DataOutput
 
@@ -48,7 +56,7 @@ public class CooccurrencesVector implements Writable {
 
 		try {
 			outputConvert = new ObjectOutputStream(byteArrOutputStream);   
-			outputConvert.writeObject(coOccurMap);
+			outputConvert.writeObject(featuresMap);
 			outputConvert.flush();
 			byte[] byteConvertedMap = byteArrOutputStream.toByteArray();
 
@@ -62,20 +70,25 @@ public class CooccurrencesVector implements Writable {
 				System.out.println("Byte Array output stream close exception occured\n");
 			}
 		}
+		
+		out.writeDouble(normRawFrequency);
+		out.writeDouble(normRelativeFrequency); 
+		out.writeDouble(normPMI);
+		out.writeDouble(normTtest);
 	}
 
-	
+
 
 	/*********** 	Read data from DataInput	 ***********/
 
-	
+
 
 	@SuppressWarnings("unchecked")
 	public void readFields(DataInput in) throws IOException 
 	{
-		word = in.readUTF();
+		lexeme.set(in.readUTF());
 		int bytesArraySize = in.readInt();				// Read 'pushed' integer indicating size of bytes array
-		
+
 		byte[] bytesArray = new byte[bytesArraySize];
 		in.readFully(bytesArray);
 
@@ -85,7 +98,7 @@ public class CooccurrencesVector implements Writable {
 		ObjectInput inputStream = null;
 		try {
 			inputStream = new ObjectInputStream(bytesInputStream);
-			coOccurMap = (Map<Integer, Feature>) inputStream.readObject(); 
+			featuresMap = (Map<Feature, MeasuresWritable>) inputStream.readObject(); 
 		} 
 		catch (ClassNotFoundException e) {
 			System.out.println("Error occurred while reading object from DataInput");
@@ -99,75 +112,142 @@ public class CooccurrencesVector implements Writable {
 				System.out.println("Input stream close exception occured\n");
 			}
 		}
+		
+		normRawFrequency = in.readDouble();
+		normRelativeFrequency = in.readDouble();
+		normPMI = in.readDouble();
+		normTtest = in.readDouble();
 	}
 
-	
-	
+
+
 	/*********** 	Add feature to co-occurrences vector	 ***********/
 
-	
-	/*
-	public void addFeature(Feature feature) {
 
-		int hashKey = Feature.getHashCode(feature.getWord(), feature.getDependancyLabel());		// Get hash code value (which is the key to the entry in the hash map)
-		Feature currFeature = coOccurMap.get(hashKey);											// Get the current feature in the hash map (if exists)
-		
-		/* Feature exists in hash map --> update total count of feature */
-		/*
-		if (currFeature != null) {
-			int currCount = currFeature.getTotalCount();
-			currFeature.setTotalCount(currCount + feature.getTotalCount());
-			coOccurMap.put(hashKey, currFeature);
-		}
-		
-		/* Feature doesn't exist in hash map --> Add feature to the hash map */
-		/*
-		else {
-			coOccurMap.put(hashKey, feature);
-		}
+	
+	public void addFeature(Feature feature) 
+	{
+		MeasuresWritable featureMeasures = new MeasuresWritable(feature.getLexeme(), 
+																feature.getFeature().toString(), 
+																feature.getRawFrequency(), 
+																feature.getRelativeFrequency(), 
+																feature.getPMI(), 
+																feature.getTtest());
+		this.featuresMap.put(feature, featureMeasures);
 	}
-	*/
-	
-	
+	 
+
+
 	/*********** 	Deep copy all features (mappings) from another co-occurrences vector into co-occurrences vector 	 ***********/
 
-	
-	
+
+
 	public void copyFeatures(CooccurrencesVector otherVector) 
 	{
 		/*	Check lexemes correspondence before performing the copy operation	*/
-		if (!this.word.equals(otherVector.getWord())) 
+		if (!this.lexeme.equals(otherVector.getLexeme())) 
 		{
 			System.out.println("copyFeatures: Don't perform features copy, as different lexemes co-occurrences vectors");
 			return;
 		}
-		
-		Map<Integer, Feature> otherMap = otherVector.getCoOccurMap();			// Get other co-occurrences vector's map
-		
+
+		Map<Feature, MeasuresWritable> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
+
 		/*	Iterate through map to copy features from the other's map to our map	*/
-		
-		for (Map.Entry<Integer, Feature> entry : otherMap.entrySet()) 
+
+		for (Map.Entry<Feature, MeasuresWritable> entry : otherMap.entrySet()) 
 		{
-			Feature feature = entry.getValue();						// <other word, dependancy label, total count>
-			//this.addFeature(feature);
+			MeasuresWritable measures = entry.getValue();						// <other word, dependancy label, total count>
+			//this.addFeature(measures);
 		}
 	}
-	
-	
+
+
 
 	/*********** 	Getters	 ***********/
 
 
-	public String getWord() { return this.word; }
-	public Map<Integer, Feature> getCoOccurMap() { return coOccurMap; }
-
-
-	/*********** 	To string	 ***********/
+	public Text getLexeme() { return this.lexeme; }
+	public Map<Feature, MeasuresWritable> getFeaturesMap() { return this.featuresMap; }
+	
+	public MeasuresWritable getCoordinate(Feature feature) 
+	{
+		return this.featuresMap.get(feature);
+	}
+	
+	
+	public double getNormRawFrequency() { return this.normRawFrequency; }
+	public double getNormRelativeFrequency() { return this.normRelativeFrequency; }
+	public double getNormPMI() { return this.normPMI; }
+	public double getNormTtest() { return this.normTtest; }
+	
+	
+	/*********** 	Setters	 ***********/
+	
+	public void setLexeme(Text newLexeme) { this.lexeme = newLexeme; }
+	
+	public void setLexemeNorms(float rawFreqNorm, float relFrequencyNorm, double pmiNorm, double TtestNorm) { 
+		this.normRawFrequency = rawFreqNorm; 
+		this.normRelativeFrequency = relFrequencyNorm;
+		this.normPMI = pmiNorm;
+		this.normTtest = TtestNorm;
+	}
 
 	
+	
+	/*********** 	Compute co-occurrences vector norms 	 ***********/
+
+	
+	
+	public void computeVectorNorms() 
+	{
+		int rawMeasure = 0;
+		float relativeMeasure = 0;
+		double pmiMeasure = 0;
+		double tTestMeasure = 0;
+		
+		float rawFrequencyNorm = 0;
+		float relatvieFrequencyNorm = 0;
+		double pmiNorm = 0;
+		double tTestNorm = 0;
+		
+		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
+		{
+			MeasuresWritable measures = entry.getValue();
+			rawMeasure = measures.getRawFrequency();
+			relativeMeasure = measures.getRelativeFrequency();
+			pmiMeasure = measures.getPMI();
+			tTestMeasure = measures.getTtest();
+			
+			rawFrequencyNorm += (rawMeasure * rawMeasure);
+			relatvieFrequencyNorm += (relativeMeasure * relativeMeasure);
+			pmiNorm += (pmiMeasure * pmiMeasure);
+			tTestNorm += (tTestMeasure * tTestMeasure);
+		}
+		
+		this.normRawFrequency = Math.sqrt(rawFrequencyNorm);
+		this.normRelativeFrequency = Math.sqrt(relatvieFrequencyNorm);
+		this.normPMI = Math.sqrt(pmiNorm);
+		this.normTtest = Math.sqrt(tTestNorm);
+	}
+	
+	
+	
+	
+
+	
+	/*********** 	To string	 ***********/
+
+
 	@Override
 	public String toString(){
 		return "";
+	}
+
+
+	public int compareTo(CooccurrencesVector o) {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 

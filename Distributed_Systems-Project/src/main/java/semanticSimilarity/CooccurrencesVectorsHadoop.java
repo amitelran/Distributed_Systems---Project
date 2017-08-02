@@ -7,6 +7,8 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -309,7 +311,7 @@ public class CooccurrencesVectorsHadoop {
 	// Passes data on to the reducer
 
 
-	public static class MapperC extends Mapper<PairWritable, Text, PairWritable, Text> {
+	public static class IdentityMapper extends Mapper<PairWritable, Text, PairWritable, Text> {
 
 		// input: 		key: <feature, '*'> | <feature, '1'>, 			value: summed count | <lexeme, lexeme&feature count, lexeme's total count>
 		// output: 		key: <feature, '*'> | <feature, '1'>, 			value: summed count | <lexeme, lexeme&feature count, lexeme's total count>
@@ -385,6 +387,63 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	
+	/********************************************************************************************************************************************/
+
+
+
+	/*******************************************************************************************************/
+	/******************************************** 	Mapper D	 *******************************************/
+
+	
+	// Split such that 'lexeme' will be the key, and 'feature data' will be the value
+	
+
+	public static class VectorNormMapper extends Mapper<Text, Feature, Text, Feature> {
+
+		
+		// input: 		key: feature, 			value: Feature data structure
+		// output: 		key: lexeme, 			value: Feature data structure
+
+
+		public void map(Text featureKey, Feature featureValue, Context context) throws IOException,  InterruptedException 
+		{
+			context.write(new Text(featureValue.getLexeme()), featureValue);
+		}
+	}
+	
+	
+	
+	/*******************************************************************************************************/
+	/******************************************** 	Reducer D	 *******************************************/
+
+
+	
+	public static class VectorNormReducer extends Reducer<Text, Feature, Text, CooccurrencesVector> {
+		
+		
+		CooccurrencesVector vector = new CooccurrencesVector();
+
+
+		/*******************************************	Reduce D	 ***********************************************/
+
+
+		// input: 		key: lexeme, 	value: Iterable<Features>
+		// output: 		key: lexeme, 	value: Co-occurrences Vector
+
+
+		public void reduce(Text lexemeKey, Iterable<Feature> features, Context context) throws IOException, InterruptedException 
+		{
+			CooccurrencesVector vector = new CooccurrencesVector(lexemeKey);
+			for (Feature feature : features) 
+			{
+				vector.addFeature(feature);
+			}
+			context.write(lexemeKey, vector);
+		}
+	}
+	
+	
+	
 	
 	/*******************************************************************************************************/
 	/******************************************** 	MAIN	 **********************************************/
@@ -430,6 +489,8 @@ public class CooccurrencesVectorsHadoop {
 		SequenceFileOutputFormat.setOutputCompressorClass(job1, GzipCodec.class);
 		
 		job1.addCacheFile(new URI(args[2] + "#word-relatedness"));
+		
+		Log log = LogFactory.getLog(TokenizerMapper.class);
 
 		if(!job1.waitForCompletion(true))
 			System.exit(1);
@@ -469,7 +530,7 @@ public class CooccurrencesVectorsHadoop {
 		Job job3 = Job.getInstance(conf, "Measures of Association with Context");
 		job3.setJarByClass(CooccurrencesVectorsHadoop.class);
 		
-		job3.setMapperClass(MapperC.class);
+		job3.setMapperClass(IdentityMapper.class);
 		job3.setReducerClass(MeasuresOfAssocWithContextReducer.class);
 		
 		job3.setMapOutputKeyClass(PairWritable.class);

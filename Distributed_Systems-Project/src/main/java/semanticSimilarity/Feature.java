@@ -14,13 +14,15 @@ public class Feature implements WritableComparable<Feature> {
 	protected String lexeme;
 	protected int feature_total_independent_count;
 	protected int lexeme_total_independent_count;
-	
+		
 	// Measures of association with context
 	protected int raw_frequency = -1;				// Frequency of feature & lexeme appearances = count(F=f, L=l)
 	protected float relative_frequency = -1;
 	protected double pmi = -1;						// Pointwise Mutual Information
 	protected double t_test = -1;
 	
+	
+
 	
 	/*********** 	Constructors	 ***********/
 	
@@ -51,6 +53,7 @@ public class Feature implements WritableComparable<Feature> {
 		out.writeFloat(relative_frequency);
 		out.writeDouble(pmi);
 		out.writeDouble(t_test);
+		
 	}
 
 	
@@ -68,6 +71,7 @@ public class Feature implements WritableComparable<Feature> {
 		relative_frequency = in.readFloat();
 		pmi = in.readDouble();
 		t_test = in.readDouble();
+		
 	}
 
 	
@@ -159,6 +163,7 @@ public class Feature implements WritableComparable<Feature> {
 	public String getLexeme() { return this.lexeme; }
 	public int getTotalIndependentCountOfFeature() { return this.feature_total_independent_count; }
 	public int getTotalIndependentCountOfLexeme() { return this.lexeme_total_independent_count; }
+	
 	public int getRawFrequency() { return this.raw_frequency; }
 	public float getRelativeFrequency() { return this.relative_frequency; }
 	public double getPMI() { return this.pmi; }
@@ -170,6 +175,8 @@ public class Feature implements WritableComparable<Feature> {
 	
 	public void setFeatureTotalCount(int featureCount) { this.feature_total_independent_count = featureCount; }
 	public void setLexemeTotalCount(int lexemeCount) { this.lexeme_total_independent_count = lexemeCount; }
+	
+	
 
 	
 
@@ -182,7 +189,7 @@ public class Feature implements WritableComparable<Feature> {
 				"Lexeme: " + lexeme + ", " + 
 				"Independent Count of feature: " + Integer.toString(feature_total_independent_count) + ", " + 
 				"Independent Count of lexeme: " + Integer.toString(lexeme_total_independent_count) + ", " +
-				"Lexeme & Feature: " + Integer.toString(raw_frequency) + ", " +
+				"Lexeme & Feature Frequency: " + Integer.toString(raw_frequency) + ", " +
 				"Relative Frequency: " + Float.toString(relative_frequency) + ", " +
 				"PMI: " + Double.toString(pmi) + ", " + 
 				"T_Test: " + Double.toString(t_test) + "\n";

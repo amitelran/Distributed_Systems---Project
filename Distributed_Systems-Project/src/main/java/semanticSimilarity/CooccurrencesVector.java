@@ -19,14 +19,15 @@ import org.apache.hadoop.io.WritableComparable;
 
 public class CooccurrencesVector implements WritableComparable<CooccurrencesVector> {
 
-	protected Text lexeme;
+	
+	protected String lexeme;
 	protected Map<Feature, MeasuresWritable> featuresMap = new HashMap<Feature, MeasuresWritable>(); 	// Mapping of a hash code as the 'key', and Features as the 'value
 
 	// Lexeme's vector norm according to each measure of association with context
-	protected double normRawFrequency = -1;
-	protected double normRelativeFrequency = -1;
-	protected double normPMI = -1;
-	protected double normTtest = -1;
+	protected double normRawFrequency = 0;
+	protected double normRelativeFrequency = 0;
+	protected double normPMI = 0;
+	protected double normTtest = 0;
 
 	
 	
@@ -36,7 +37,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public CooccurrencesVector(){}
 
 
-	public CooccurrencesVector(Text lexeme) {
+	public CooccurrencesVector(String lexeme) {
 		this.lexeme = lexeme;
 	}
 
@@ -47,7 +48,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 	public void write(DataOutput out) throws IOException 
 	{
-		out.writeUTF(lexeme.toString());
+		out.writeUTF(lexeme);
 
 		// Convert hash map into bytes array in order to write to DataOutput
 
@@ -86,7 +87,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	@SuppressWarnings("unchecked")
 	public void readFields(DataInput in) throws IOException 
 	{
-		lexeme.set(in.readUTF());
+		lexeme = in.readUTF();
 		int bytesArraySize = in.readInt();				// Read 'pushed' integer indicating size of bytes array
 
 		byte[] bytesArray = new byte[bytesArraySize];
@@ -127,12 +128,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	
 	public void addFeature(Feature feature) 
 	{
-		MeasuresWritable featureMeasures = new MeasuresWritable(feature.getLexeme(), 
-																feature.getFeature().toString(), 
-																feature.getRawFrequency(), 
-																feature.getRelativeFrequency(), 
-																feature.getPMI(), 
-																feature.getTtest());
+		MeasuresWritable featureMeasures = new MeasuresWritable(feature.getMeasures());
 		this.featuresMap.put(feature, featureMeasures);
 	}
 	 
@@ -167,8 +163,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	/*********** 	Getters	 ***********/
 
 
-	public Text getLexeme() { return this.lexeme; }
+	public String getLexeme() { return this.lexeme; }
 	public Map<Feature, MeasuresWritable> getFeaturesMap() { return this.featuresMap; }
+	
+	public double getNormRawFrequency() { return this.normRawFrequency; }
+	public double getNormRelativeFrequency() { return this.normRelativeFrequency; }
+	public double getNormPMI() { return this.normPMI; }
+	public double getNormTtest() { return this.normTtest; }
 	
 	public MeasuresWritable getCoordinate(Feature feature) 
 	{
@@ -176,17 +177,15 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	}
 	
 	
-	public double getNormRawFrequency() { return this.normRawFrequency; }
-	public double getNormRelativeFrequency() { return this.normRelativeFrequency; }
-	public double getNormPMI() { return this.normPMI; }
-	public double getNormTtest() { return this.normTtest; }
-	
 	
 	/*********** 	Setters	 ***********/
 	
-	public void setLexeme(Text newLexeme) { this.lexeme = newLexeme; }
 	
-	public void setLexemeNorms(float rawFreqNorm, float relFrequencyNorm, double pmiNorm, double TtestNorm) { 
+	public void setLexeme(String newLexeme) { this.lexeme = newLexeme; }
+	
+	
+	public void setLexemeNorms(float rawFreqNorm, float relFrequencyNorm, double pmiNorm, double TtestNorm) 
+	{ 
 		this.normRawFrequency = rawFreqNorm; 
 		this.normRelativeFrequency = relFrequencyNorm;
 		this.normPMI = pmiNorm;
@@ -233,6 +232,242 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	
 	
 	
+	/*********** 	Compute co-occurrences vectors similarities 	 ***********/
+	
+	
+	public VectorsSimilaritiesWritable vectorsSim(CooccurrencesVector otherVector)
+	{
+		MeasuresWritable thisMeasures = new MeasuresWritable();
+		MeasuresWritable otherMeasures = new MeasuresWritable();
+		VectorsSimilaritiesWritable vectorsSimilarities = new VectorsSimilaritiesWritable(this.lexeme, otherVector.getLexeme());
+		double thisRawFreq;
+		double thisRelFreq;
+		double thisPMI;
+		double thisTtest;
+		double otherRawFreq;
+		double otherRelFreq;
+		double otherPMI;
+		double otherTtest;
+		
+		double rawFreq_ManhattanDis = 0;
+		double rawFreq_EuclideanDis = 0;
+		double rawFreq_CosineSim_numerator = 0;
+		double rawFreq_JaccardSim_DiceSim_numerator = 0;
+		double rawFreq_JaccardSim_denominator = 0;
+		double rawFreq_DiceSim_denominator = 0;
+
+		double relFreq_ManhattanDis = 0;
+		double relFreq_EuclideanDis = 0;
+		double relFreq_CosineSim_numerator = 0;
+		double relFreq_JaccardSim_DiceSim_numerator = 0;
+		double relFreq_JaccardSim_denominator = 0;
+		double relFreq_DiceSim_denominator = 0;
+		
+		double pmi_ManhattanDis = 0;
+		double pmi_EuclideanDis = 0;
+		double pmi_CosineSim_numerator = 0;
+		double pmi_JaccardSim_DiceSim_numerator = 0;
+		double pmi_JaccardSim_denominator = 0;
+		double pmi_DiceSim_denominator = 0;
+		
+		double tTest_ManhattanDis = 0;
+		double tTest_EuclideanDis = 0;
+		double tTest_CosineSim_numerator = 0;
+		double tTest_JaccardSim_DiceSim_numerator = 0;
+		double tTest_JaccardSim_denominator = 0;
+		double tTest_DiceSim_denominator = 0;
+		
+		
+		Map<Feature, MeasuresWritable> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
+		
+		/*	Iterate through all features of this vector and compare with other vector's features	*/
+		
+		for (Map.Entry<Feature, MeasuresWritable> currEntry : featuresMap.entrySet()) 
+		{
+			thisMeasures = currEntry.getValue();
+			
+			thisRawFreq = thisMeasures.getRawFrequency();
+			thisRelFreq = thisMeasures.getRelativeFrequency();
+			thisPMI = thisMeasures.getPMI();
+			thisTtest = thisMeasures.getTtest();
+			
+			otherMeasures = otherMap.get(currEntry.getKey());
+			
+			if (otherMeasures != null) 							// Feature exists in both maps!
+			{								
+				otherRawFreq = otherMeasures.getRawFrequency();
+				otherRelFreq = otherMeasures.getRelativeFrequency();
+				otherPMI = otherMeasures.getPMI();
+				otherTtest = otherMeasures.getTtest();
+				
+				/* Raw Frequency similarities */
+
+				rawFreq_ManhattanDis += Math.abs(thisRawFreq - otherRawFreq);						
+				rawFreq_EuclideanDis += Math.pow((thisRawFreq - otherRawFreq), 2);					
+				rawFreq_CosineSim_numerator += (thisRawFreq * otherRawFreq); 						
+				rawFreq_JaccardSim_DiceSim_numerator += Math.min(thisRawFreq, otherRawFreq); 
+				rawFreq_JaccardSim_denominator += Math.max(thisRawFreq, otherRawFreq); 		
+				rawFreq_DiceSim_denominator += (thisRawFreq + otherRawFreq);				
+			
+				/* Relative Frequency similarities */
+				
+				relFreq_ManhattanDis += Math.abs(thisRelFreq - otherRelFreq);				
+				relFreq_EuclideanDis += Math.pow((thisRelFreq - otherRelFreq), 2);			
+				relFreq_CosineSim_numerator += (thisRelFreq * otherRelFreq); 				
+				relFreq_JaccardSim_DiceSim_numerator += Math.min(thisRelFreq, otherRelFreq); 	
+				relFreq_JaccardSim_denominator += Math.max(thisRelFreq, otherRelFreq); 		
+				relFreq_DiceSim_denominator += (thisRelFreq + otherRelFreq);		
+				
+				/* PMI Frequency similarities */
+
+				pmi_ManhattanDis += Math.abs(thisPMI - otherPMI);				
+				pmi_EuclideanDis += Math.pow((thisPMI - otherPMI), 2);			
+				pmi_CosineSim_numerator += (thisPMI * otherPMI); 				
+				pmi_JaccardSim_DiceSim_numerator += Math.min(thisPMI, otherPMI); 	
+				pmi_JaccardSim_denominator += Math.max(thisPMI, otherPMI); 		
+				pmi_DiceSim_denominator += (thisPMI + otherPMI);
+				
+				/* T-test Frequency similarities */
+				
+				tTest_ManhattanDis += Math.abs(thisTtest - otherTtest);				
+				tTest_EuclideanDis += Math.pow((thisTtest - otherTtest), 2);			
+				tTest_CosineSim_numerator += (thisTtest * otherTtest); 				
+				tTest_JaccardSim_DiceSim_numerator += Math.min(thisTtest, otherTtest); 	
+				tTest_JaccardSim_denominator += Math.max(thisTtest, otherTtest); 		
+				tTest_DiceSim_denominator += (thisTtest + otherTtest);
+			}
+			else 												// Feature exists only in 'this' vector
+			{												
+				/* Raw Frequency similarities */
+
+				rawFreq_ManhattanDis += thisRawFreq;						
+				rawFreq_EuclideanDis += Math.pow(thisRawFreq, 2);					
+				rawFreq_JaccardSim_denominator += thisRawFreq; 		
+				rawFreq_DiceSim_denominator += thisRawFreq;				
+			
+				/* Relative Frequency similarities */
+				
+				relFreq_ManhattanDis += thisRelFreq;				
+				relFreq_EuclideanDis += Math.pow(thisRelFreq, 2);			
+				relFreq_JaccardSim_denominator += thisRelFreq; 		
+				relFreq_DiceSim_denominator += thisRelFreq;		
+				
+				/* PMI Frequency similarities */
+
+				pmi_ManhattanDis += thisPMI;				
+				pmi_EuclideanDis += Math.pow(thisPMI, 2);			
+				pmi_JaccardSim_denominator += thisPMI; 		
+				pmi_DiceSim_denominator += thisPMI;
+				
+				/* T-test Frequency similarities */
+				
+				tTest_ManhattanDis += thisTtest;				
+				tTest_EuclideanDis += Math.pow(thisTtest, 2);			
+				tTest_JaccardSim_denominator += thisTtest; 		
+				tTest_DiceSim_denominator += thisTtest;
+			}
+		}
+		
+		
+		/*	Iterate through all features of other vector such that doesn't exist in this vector	*/
+		
+		for (Map.Entry<Feature, MeasuresWritable> otherEntry : otherMap.entrySet()) 
+		{
+			otherMeasures = otherEntry.getValue();	
+			
+			otherRawFreq = otherMeasures.getRawFrequency();
+			otherRelFreq = otherMeasures.getRelativeFrequency();
+			otherPMI = otherMeasures.getPMI();
+			otherTtest = otherMeasures.getTtest();
+			
+			thisMeasures = featuresMap.get(otherEntry.getValue());
+			
+			if (thisMeasures != null)								// Feature exists in both vectors -> already computed in previous loop, ignore
+			{
+				continue;
+			}
+			else 
+			{
+				/* Raw Frequency similarities */
+
+				rawFreq_ManhattanDis += otherRawFreq;						
+				rawFreq_EuclideanDis += Math.pow(otherRawFreq, 2);					
+				rawFreq_JaccardSim_denominator += otherRawFreq; 		
+				rawFreq_DiceSim_denominator += otherRawFreq;				
+			
+				/* Relative Frequency similarities */
+				
+				relFreq_ManhattanDis += otherRelFreq;				
+				relFreq_EuclideanDis += Math.pow(otherRelFreq, 2);			
+				relFreq_JaccardSim_denominator += otherRelFreq; 		
+				relFreq_DiceSim_denominator += otherRelFreq;		
+				
+				/* PMI Frequency similarities */
+
+				pmi_ManhattanDis += otherPMI;				
+				pmi_EuclideanDis += Math.pow(otherPMI, 2);			
+				pmi_JaccardSim_denominator += otherPMI; 		
+				pmi_DiceSim_denominator += otherPMI;
+				
+				/* T-test Frequency similarities */
+				
+				tTest_ManhattanDis += otherTtest;				
+				tTest_EuclideanDis += Math.pow(otherTtest, 2);			
+				tTest_JaccardSim_denominator += otherTtest; 		
+				tTest_DiceSim_denominator += otherTtest;
+			}
+		}
+		
+		/* Raw Frequency similarities */
+
+		vectorsSimilarities.setRawFrequency_ManhattanDis(rawFreq_ManhattanDis);
+		vectorsSimilarities.setRawFrequency_EuclideanDis(Math.sqrt(rawFreq_EuclideanDis));
+		vectorsSimilarities.setRawFrequency_CosineSim(rawFreq_CosineSim_numerator / (this.normRawFrequency * otherVector.getNormRawFrequency()));
+		vectorsSimilarities.setRawFrequency_JaccardSim(rawFreq_JaccardSim_DiceSim_numerator / rawFreq_JaccardSim_denominator);
+		vectorsSimilarities.setRawFrequency_DiceSim(rawFreq_JaccardSim_DiceSim_numerator / rawFreq_DiceSim_denominator);				
+	
+		/* Relative Frequency similarities */
+		
+		vectorsSimilarities.setRelativeFrequency_ManhattanDis(relFreq_ManhattanDis);
+		vectorsSimilarities.setRelativeFrequency_EuclideanDis(Math.sqrt(relFreq_EuclideanDis));
+		vectorsSimilarities.setRelativeFrequency_CosineSim(relFreq_CosineSim_numerator / (this.normRelativeFrequency * otherVector.getNormRelativeFrequency()));
+		vectorsSimilarities.setRelativeFrequency_JaccardSim(relFreq_JaccardSim_DiceSim_numerator / relFreq_JaccardSim_denominator);
+		vectorsSimilarities.setRelativeFrequency_DiceSim(relFreq_JaccardSim_DiceSim_numerator / relFreq_DiceSim_denominator);			
+		
+		/* PMI Frequency similarities */
+
+		vectorsSimilarities.setPMI_ManhattanDis(pmi_ManhattanDis);
+		vectorsSimilarities.setPMI_EuclideanDis(Math.sqrt(pmi_EuclideanDis));
+		vectorsSimilarities.setPMI_CosineSim(pmi_CosineSim_numerator / (this.normPMI * otherVector.getNormPMI()));
+		vectorsSimilarities.setPMI_JaccardSim(pmi_JaccardSim_DiceSim_numerator / pmi_JaccardSim_denominator);
+		vectorsSimilarities.setPMI_DiceSim(pmi_JaccardSim_DiceSim_numerator / pmi_DiceSim_denominator);	
+		
+		/* T-test Frequency similarities */
+		
+		vectorsSimilarities.setTtest_ManhattanDis(tTest_ManhattanDis);
+		vectorsSimilarities.setTtest_EuclideanDis(Math.sqrt(tTest_EuclideanDis));
+		vectorsSimilarities.setTtest_CosineSim(tTest_CosineSim_numerator / (this.normTtest * otherVector.getNormTtest()));
+		vectorsSimilarities.setTtest_JaccardSim(tTest_JaccardSim_DiceSim_numerator / tTest_JaccardSim_denominator);
+		vectorsSimilarities.setTtest_DiceSim(tTest_JaccardSim_DiceSim_numerator / tTest_DiceSim_denominator);	
+		
+		return vectorsSimilarities;
+	}
+
+	
+	
+	
+	/*********** 	Co-occurrences Vector reset	 ***********/
+
+
+	public void resetVector() 
+	{
+		this.lexeme = null;
+		this.normRawFrequency = 0;
+		this.normRelativeFrequency = 0;
+		this.normPMI = 0;
+		this.normTtest = 0;
+		this.featuresMap.clear();
+	}
 	
 
 	
@@ -244,10 +479,12 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		return "";
 	}
 
+	
+	/*********** 	Compare To	 ***********/
+	
 
-	public int compareTo(CooccurrencesVector o) {
-		// TODO Auto-generated method stub
-		return 0;
+	public int compareTo(CooccurrencesVector other) {
+		return this.lexeme.compareTo(other.getLexeme());
 	}
 
 

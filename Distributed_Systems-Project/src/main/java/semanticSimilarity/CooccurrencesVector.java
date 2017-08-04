@@ -12,8 +12,6 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 
@@ -132,29 +130,38 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		this.featuresMap.put(feature, featureMeasures);
 	}
 	 
+	
+	
+	/*********** 	Deep copy other vector to this vector 	 ***********/
 
+	
+
+	public void copyVector(CooccurrencesVector otherVector) 
+	{
+		this.resetVector();
+		this.lexeme = otherVector.getLexeme();
+		this.normRawFrequency = otherVector.getNormRawFrequency();
+		this.normRelativeFrequency = otherVector.getNormRelativeFrequency();
+		this.normPMI = otherVector.getNormPMI();
+		this.normTtest = otherVector.getNormTtest();
+		this.copyFeatures(otherVector);
+		
+	}
 
 	/*********** 	Deep copy all features (mappings) from another co-occurrences vector into co-occurrences vector 	 ***********/
 
-
+	
 
 	public void copyFeatures(CooccurrencesVector otherVector) 
 	{
-		/*	Check lexemes correspondence before performing the copy operation	*/
-		if (!this.lexeme.equals(otherVector.getLexeme())) 
-		{
-			System.out.println("copyFeatures: Don't perform features copy, as different lexemes co-occurrences vectors");
-			return;
-		}
-
+		
 		Map<Feature, MeasuresWritable> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
 
 		/*	Iterate through map to copy features from the other's map to our map	*/
 
 		for (Map.Entry<Feature, MeasuresWritable> entry : otherMap.entrySet()) 
 		{
-			MeasuresWritable measures = entry.getValue();						// <other word, dependancy label, total count>
-			//this.addFeature(measures);
+			this.addFeature(entry.getKey());
 		}
 	}
 

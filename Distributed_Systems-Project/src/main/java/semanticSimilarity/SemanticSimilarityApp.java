@@ -49,6 +49,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 public class SemanticSimilarityApp {
 
 	public static int NUM_FILES_CORPUS = 1;					// Determine number of input Google N-gram files to go over in corpus
+	public static String INPUT_CORPUS_BUCKET = "https://s3-eu-west-1.amazonaws.com/dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
 	public static String INPUT_BUCKET_NAME = "";
 	public static String OUTPUTFILENAME = "output.txt";
 	public static String BUCKET_NAME = "yoav.amit.dsp-project";
@@ -56,10 +57,6 @@ public class SemanticSimilarityApp {
 	
 
 	public static void main(String[] args) throws Exception { 	
-		int numOfTruePositive = 0;
-		int numOfFalsePositive = 0;
-		int numOfTrueNegative = 0;
-		int numOfFalseNegative = 0;
 		String clusterId = null;
 		String stepId = null;
 		boolean hasIds = false;

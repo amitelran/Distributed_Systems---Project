@@ -8,33 +8,49 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 
 
-public class PairWritable extends Pair<Text, Text> implements WritableComparable<PairWritable>{
+public class PairWritable extends Pair<String, String> implements WritableComparable<PairWritable>{
 	
     
 	public PairWritable(){}
     
-	public PairWritable(Text first, Text second) {
-		this.first = first;
-		this.second = second;
+	
+	
+	public PairWritable(String word_i, String word_j) 
+	{
+		int compare = word_i.compareTo(word_j);
+		
+		// If: 	word_i = "*"	OR 		word_i > word_j (lexicographically)
+		if (((word_i.equals("*")) || (compare > 0)))
+		{
+			this.first = word_i;
+			this.second = word_j;
+		}
+		
+		// If reached here: 	word_j = "*" 	OR 		word_i <= word_j
+		else											
+		{
+			this.first = word_j;
+			this.second = word_i;
+		}
 	}
 
 
 	public void write(DataOutput out) throws IOException {
-        first.write(out);
-        second.write(out);
+		out.writeUTF(first);
+		out.writeUTF(second);
 	}
 
 	
 	public void readFields(DataInput in) throws IOException {
-        first.readFields(in);
-        second.readFields(in);
+		first = in.readUTF();
+		second = in.readUTF();
 	}
 
 	
 	
 	
     public int compareTo(PairWritable other) {
-    	int checkArg = this.first.toString().compareTo(other.getFirst().toString());
+    	int checkArg = this.first.compareTo(other.getFirst());
     	if (checkArg != 0) {
     		return checkArg;
     	}
@@ -44,7 +60,7 @@ public class PairWritable extends Pair<Text, Text> implements WritableComparable
     	else if (other.getSecond().toString().equals("*")) {
     		return 1;
     	}
-    	return (this.second.toString().compareTo(other.getSecond().toString()));
+    	return (this.second.compareTo(other.getSecond()));
     	
     }
     
@@ -57,6 +73,8 @@ public class PairWritable extends Pair<Text, Text> implements WritableComparable
         result = 31 * result + second.hashCode();
         return result;
     }
+    
+    
     
     
     @Override
@@ -82,6 +100,22 @@ public class PairWritable extends Pair<Text, Text> implements WritableComparable
         return true;
     }
 
+    
+    
+    public void orderPairLexicograph() 
+	{
+    	if (first.equals("*") || second.equals("*") || second.equals("1")) 
+    	{
+    		return;
+    	}
+    	
+		int compare = first.compareTo(second);
+		if (compare > 0) {
+			String tmp = this.first;
+			this.first = this.second;
+			this.second = tmp;
+		}
+	}
 
 
 }

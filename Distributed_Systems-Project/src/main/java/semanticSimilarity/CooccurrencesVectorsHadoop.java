@@ -22,7 +22,9 @@ import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.TaskCounter;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+
 
 
 
@@ -46,6 +48,7 @@ public class CooccurrencesVectorsHadoop {
 	public static class TokenizerMapper extends Mapper<Text, SyntacticNgramLine, Text, IntWritable> {
 
 		private Set<String> goldStandardWords = new HashSet<String>();
+		private SyntacticNgram currNgram = new SyntacticNgram();
 		private Text token = new Text();
 		private IntWritable total_count = new IntWritable();
 
@@ -83,10 +86,8 @@ public class CooccurrencesVectorsHadoop {
 				while((wordsPairsLine = bufferedReader.readLine()) != null) 
 				{
 					String[] splitWords = wordsPairsLine.split("\\t");
-					String word1 = Stemmer.stemWord(splitWords[0]);
-					String word2 = Stemmer.stemWord(splitWords[1]);
-					goldStandardWords.add(word1);
-					goldStandardWords.add(word2);
+					goldStandardWords.add(Stemmer.stemWord(splitWords[0]));
+					goldStandardWords.add(Stemmer.stemWord(splitWords[1]));
 				}
 				bufferedReader.close();
 			} 
@@ -106,26 +107,29 @@ public class CooccurrencesVectorsHadoop {
 
 		public void map(Text headWord, SyntacticNgramLine ngramLine, Context context) throws IOException,  InterruptedException 
 		{
-			SyntacticNgram[] ngrams = ngramLine.getNgrams();			// Extract syntactic ngrams array for multiple uses
+			SyntacticNgram[] ngrams = ngramLine.copyNgrams();			// Extract syntactic ngrams array for multiple uses
 			total_count.set(ngramLine.getTotalCount());					// Extract total count integer for multiple uses
 
 			for (int i = 0; i < ngrams.length; i++) 
 			{
-				SyntacticNgram currNgram = ngrams[i];
-				System.err.println(currNgram.toString());
+				currNgram = ngrams[i];
 				String currWord = currNgram.getWord();
 				String dependancyLabel = currNgram.getDependancyLabel();
 				
-				SyntacticNgram headIndexNgram = ngrams[currNgram.getHeadIndex() - 1];		// Get the 'head' word which points on current Ngram
-				String headIndexWord = headIndexNgram.getWord(); 						// Get the head word from the index
-				headIndexWord = Stemmer.stemWord(headIndexWord);						// Stem head-index word
+				SyntacticNgram headIndexNgram = new SyntacticNgram();
+				if (currNgram.getHeadIndex() == 0) {
+					headIndexNgram = ngrams[currNgram.getHeadIndex()];			// Head word is the current Ngram
+				}
+				else {
+					headIndexNgram = ngrams[currNgram.getHeadIndex() - 1];		// Get the 'head' word which points on current Ngram
+				}
+				
+				String headIndexWord = headIndexNgram.getWord();						// Stem head-index word
 
 				// If the head-index word is not a part of the gold standard dataset --> no need to build co-occurrences vector
 				if (!(goldStandardWords.contains(headIndexWord))) {
 					continue;
 				}
-
-				currWord = Stemmer.stemWord(currWord);									// Stem current word
 				
 				// If head-index had not been written to context yet --> write, and flag as "written"
 				if (!currNgram.isWritten()) 											
@@ -144,7 +148,6 @@ public class CooccurrencesVectorsHadoop {
 				context.write(token, total_count);
 
 			}
-
 		}
 	}
 
@@ -199,7 +202,6 @@ public class CooccurrencesVectorsHadoop {
 		public void map(Text token, IntWritable total_count, Context context) throws IOException,  InterruptedException 
 		{
 			String key = token.toString();
-			System.out.println(key);
 			
 			// Case token is of form: lexeme, word-dep_label --> split to make lexeme the key, and add feature to the value
 			if (key.contains(",")) {
@@ -558,7 +560,7 @@ public class CooccurrencesVectorsHadoop {
 
 
 	
-	public static class FuzzyJoinMapper extends Mapper<Text, CooccurrencesVector, PairWritable, CooccurrencesVector> {
+	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, PairWritable, CooccurrencesVector> {
 				
 		private Set<String> goldStandardWords = new HashSet<String>();
 		private PairWritable lexemesPair = new PairWritable();
@@ -666,7 +668,7 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	
-	public static class FuzzyJoinReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, VectorsSimilaritiesWritable> {
+	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, VectorsSimilaritiesWritable> {
 
 		
 		private CooccurrencesVector leftVector = new CooccurrencesVector();
@@ -737,18 +739,16 @@ public class CooccurrencesVectorsHadoop {
 		Job job1 = Job.getInstance(conf, "Tokens Count");
 		job1.setJarByClass(CooccurrencesVectorsHadoop.class);
 		
-		
-		/*	MapReduce A configurations	*/
-
 		job1.setMapperClass(TokenizerMapper.class);
 		job1.setCombinerClass(TokenizerSumReducer.class);
 		job1.setReducerClass(TokenizerSumReducer.class);
+		
 		job1.setMapOutputKeyClass(Text.class);
 		job1.setMapOutputValueClass(IntWritable.class);
 		job1.setOutputKeyClass(Text.class);
 		job1.setOutputValueClass(IntWritable.class);
-		job1.setInputFormatClass(SyntacticNgramInputFormat.class);
 		
+		job1.setInputFormatClass(SyntacticNgramInputFormat.class);
 		SyntacticNgramInputFormat.addInputPath(job1, new Path(args[0]));
 		job1.setOutputFormatClass(SequenceFileOutputFormat.class);
 		SequenceFileOutputFormat.setOutputCompressionType(job1, CompressionType.BLOCK);
@@ -818,47 +818,57 @@ public class CooccurrencesVectorsHadoop {
 		
 		/***********************************	Job 4 - MapReduce D	 *****************************************/
 
-		/*
-		Job job4 = Job.getInstance(conf, "calc similarity2");
-		job4.setJarByClass(CooccurrencesVectorsHadoop.class);
-		job4.setMapperClass(SimilarityMapper2.class);
-		job4.setReducerClass(SimilarityReducer2.class);
-		job4.setOutputKeyClass(TweetTweetDoubleWritableComparable.class);
-		job4.setOutputValueClass(DoubleWritable.class);
-		job4.setInputFormatClass(SequenceFileInputFormat.class);
 		
+		Job job4 = Job.getInstance(conf, "Vectors construction");
+		job4.setJarByClass(CooccurrencesVectorsHadoop.class);
+		
+		job4.setMapperClass(VectorConstructorMapper.class);
+		job4.setReducerClass(VectorConstructorReducer.class);
+		
+		job4.setMapOutputKeyClass(Text.class);
+		job4.setMapOutputValueClass(Feature.class);
+		job4.setOutputKeyClass(Text.class);
+		job4.setOutputValueClass(CooccurrencesVector.class);
+		
+		job4.setInputFormatClass(SequenceFileInputFormat.class);
 		SequenceFileInputFormat.addInputPath(job4, new Path(args[1]+".intermediate3"));
 		job4.setOutputFormatClass(SequenceFileOutputFormat.class);
 		SequenceFileOutputFormat.setOutputCompressionType(job4, CompressionType.BLOCK);
 		SequenceFileOutputFormat.setOutputPath(job4, new Path(args[1]+".intermediate4"));
 		SequenceFileOutputFormat.setOutputCompressorClass(job4, GzipCodec.class);
 		
-		
 		if(!job4.waitForCompletion(true))
 			System.exit(1);
-		*/
+		
 		
 		/***********************************	Job 5 - MapReduce E	 *****************************************/
 		
-		/*
-		Job job5 = Job.getInstance(conf, "calc similarity2");
-		job5.setJarByClass(TweetSimHadoop.class);
-		job5.setMapperClass(SimListMapper.class);
-		job5.setReducerClass(SimListReducer.class);
-		job5.setOutputKeyClass(Text.class);
-		job5.setMapOutputKeyClass(TweetWritable.class);
-		job5.setMapOutputValueClass(TweetDoubleWritable.class);
-		job5.setOutputValueClass(Text.class);
-		job5.setInputFormatClass(SequenceFileInputFormat.class);
 		
+		Job job5 = Job.getInstance(conf, "Vectors Similiarities");
+		job5.setJarByClass(CooccurrencesVectorsHadoop.class);
+		
+		job5.setMapperClass(VectorsSimMapper.class);
+		job5.setReducerClass(VectorsSimReducer.class);
+		
+		job5.setMapOutputKeyClass(PairWritable.class);
+		job5.setMapOutputValueClass(CooccurrencesVector.class);
+		job5.setOutputKeyClass(PairWritable.class);
+		job5.setOutputValueClass(VectorsSimilaritiesWritable.class);
+		
+		job5.setInputFormatClass(SequenceFileInputFormat.class);
 		SequenceFileInputFormat.addInputPath(job5, new Path(args[1]+".intermediate4"));
 		FileOutputFormat.setOutputPath(job5, new Path(args[1]));
+		
+		job5.addCacheFile(new URI(args[2] + "#word-relatedness"));
 		
 		if(!job5.waitForCompletion(true))
 			System.exit(1);
 		
-		*/
-		Job[] jobs = { job1, job2, job3/*, job4, job5 */};
+		
+		/***********************************	Print MapReduce jobs stats	 *****************************************/
+		
+		
+		Job[] jobs = { job1, job2, job3, job4, job5 };
 		for(int i = 0; i < 5; i++) {
 			System.out.println("Phase " + (i+1) + " Key-Value Pairs:");
 			System.out.println("\tPairs sent from Mapper: " + jobs[i].getCounters().findCounter(TaskCounter.MAP_OUTPUT_RECORDS).getValue());

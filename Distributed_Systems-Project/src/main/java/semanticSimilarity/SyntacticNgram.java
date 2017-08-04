@@ -23,12 +23,10 @@ public class SyntacticNgram implements Writable {
     public SyntacticNgram(){}
     
     
-    public SyntacticNgram(String ngram) throws ParseException {
+    public SyntacticNgram(String ngram) throws ParseException, IOException {
         String[] ngramSplit = ngram.split("/");
-    	for (int i = 0; i < ngramSplit.length; i++) {
-    		System.out.println(ngramSplit[i]);
-    	}
-    	word = ngramSplit[0].toLowerCase();
+    	
+    	word = Stemmer.stemWord(ngramSplit[0].toLowerCase());
     	pos_tag = ngramSplit[1].toLowerCase();
     	dep_label = ngramSplit[2].toLowerCase();
     	head_index = Integer.parseInt(ngramSplit[3]);
@@ -84,12 +82,26 @@ public class SyntacticNgram implements Writable {
     
     
     
+    /**********************************	 Deep copy Ngram  **********************************/
+    
+    
+    public void copyNgram(SyntacticNgram otherNgram)
+    {
+    	this.word = otherNgram.getWord();
+        this.pos_tag = otherNgram.getPosTag();
+        this.dep_label = otherNgram.getDependancyLabel();
+        this.head_index= otherNgram.getHeadIndex();
+        this.writtenToContext = otherNgram.isWritten();
+    }
+
+    
     /**********************************	 To String  **********************************/
 
     
     @Override
     public String toString(){
-    	return "Word: " + word + ", Part of Speech Tag: " + pos_tag + ", Dependancy Label: " + dep_label + ", Head index: " + head_index;
+    	return word + "/" + pos_tag + "/" + dep_label + "/" + head_index;
+    	//return "Word: " + word + ", Part of Speech Tag: " + pos_tag + ", Dependancy Label: " + dep_label + ", Head index: " + head_index;
     }
 
 }

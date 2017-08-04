@@ -26,15 +26,11 @@ public class SyntacticNgramLine implements Writable {
     // Syntactic-ngrams list elements are separated by space, and are of form:	 word/pos-tag/dep-label/head-index
     
     
-    public SyntacticNgramLine(String line) throws ParseException 
+    public SyntacticNgramLine(String line) throws ParseException, IOException 
     {
-    	System.err.println(line);
     	String[] lineSplit = line.split("\\t");						// Split line by tabs
-    	for (int i = 0; i < lineSplit.length; i++) {
-    		System.err.println(lineSplit[i]);
-    	}
-    	
-        headWord = new Text(lineSplit[0]); 
+
+        headWord = new Text(Stemmer.stemWord(lineSplit[0])); 		// Set headWord as the 'Stemmed' word
         
         String[] synNgramsSplit = lineSplit[1].split("\\s+");		// Split syntactic ngrams by whitespace (every split is of form "word/pos-tag/dep-label/head-index")
         ngrams = new SyntacticNgram[synNgramsSplit.length];
@@ -62,9 +58,9 @@ public class SyntacticNgramLine implements Writable {
     
 	public SyntacticNgramLine(SyntacticNgramLine other) {
 		
-        headWord = other.headWord;
+        headWord = other.getheadWord();
         
-        SyntacticNgram[] otherNgrams = other.getNgrams();
+        SyntacticNgram[] otherNgrams = other.copyNgrams();
         ngrams = new SyntacticNgram[otherNgrams.length];
         for (int i = 0; i < otherNgrams.length; i++) {
         	ngrams[i] = otherNgrams[i];
@@ -143,5 +139,20 @@ public class SyntacticNgramLine implements Writable {
     public int getTotalCount() { return total_count; }
     //public List<Pair<Integer, Integer>> getCountsByYear() { return counts_by_year; }
     
+    
+    
+    /**********************************	 Deep copy Ngrams  **********************************/
+
+    
+    public SyntacticNgram[] copyNgrams()
+    {
+    	SyntacticNgram[] copiedNgrams = new SyntacticNgram[this.ngrams.length];
+    	for (int i = 0; i < this.ngrams.length; i++)
+    	{
+    		copiedNgrams[i] = new SyntacticNgram();
+    		copiedNgrams[i].copyNgram(this.ngrams[i]);
+    	}
+    	return copiedNgrams;
+    }
 
 }

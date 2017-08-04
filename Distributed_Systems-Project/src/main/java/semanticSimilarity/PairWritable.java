@@ -4,7 +4,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 
 
@@ -17,9 +16,14 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
 	
 	public PairWritable(String word_i, String word_j) 
 	{
+		this.first = word_i;
+		this.second = word_j;
+		
+		/*
 		int compare = word_i.compareTo(word_j);
 		
 		// If: 	word_i = "*"	OR 		word_i > word_j (lexicographically)
+		
 		if (((word_i.equals("*")) || (compare > 0)))
 		{
 			this.first = word_i;
@@ -31,7 +35,7 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
 		{
 			this.first = word_j;
 			this.second = word_i;
-		}
+		}*/
 	}
 
 
@@ -88,7 +92,7 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
         }
 
 		@SuppressWarnings("unchecked")
-		Pair<Text, Text> otherPair = (Pair<Text,Text>) other;
+		Pair<String, String> otherPair = (Pair<String,String>) other;
 
         if (second != null ? !second.equals(otherPair.getSecond()) : otherPair.getSecond() != null) {
         	return false;

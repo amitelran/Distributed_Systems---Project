@@ -35,8 +35,17 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public CooccurrencesVector(){}
 
 
-	public CooccurrencesVector(String lexeme) {
-		this.lexeme = lexeme;
+	public CooccurrencesVector(String lexeme) { this.lexeme = lexeme; }
+	
+	
+	public CooccurrencesVector(CooccurrencesVector otherVector)
+	{
+		this.lexeme = otherVector.getLexeme();
+		this.normRawFrequency = otherVector.getNormRawFrequency();
+		this.normRelativeFrequency = otherVector.getNormRelativeFrequency();
+		this.normPMI = otherVector.getNormPMI();
+		this.normTtest = otherVector.getNormTtest();
+		this.copyFeatures(otherVector);
 	}
 
 
@@ -124,9 +133,10 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 
 	
-	public void addFeature(Feature feature) 
+	public void addFeature(Feature inputFeature) 
 	{
-		MeasuresWritable featureMeasures = new MeasuresWritable(feature.getMeasures());
+		Feature feature = new Feature(inputFeature);
+		MeasuresWritable featureMeasures = new MeasuresWritable(inputFeature.getMeasures());
 		this.featuresMap.put(feature, featureMeasures);
 	}
 	 
@@ -148,6 +158,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		
 	}
 
+	
 	/*********** 	Deep copy all features (mappings) from another co-occurrences vector into co-occurrences vector 	 ***********/
 
 	

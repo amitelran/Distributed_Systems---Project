@@ -7,12 +7,20 @@ import java.io.IOException;
 import org.apache.hadoop.io.WritableComparable;
 
 
-public class PairWritable extends Pair<String, String> implements WritableComparable<PairWritable>{
+public class PairWritable extends Pair<String, String> implements WritableComparable<PairWritable> {
 	
+	protected String first;
+	protected String second;
+	
+	
+	/*********** 	Default Constructor	 ***********/
+
     
 	public PairWritable(){}
     
 	
+	/*********** 	Constructor	by two Strings  ***********/
+
 	
 	public PairWritable(String word_i, String word_j) 
 	{
@@ -38,36 +46,54 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
 		}*/
 	}
 
+	
+	/*********** 	Read & Write methods	 ***********/
 
-	public void write(DataOutput out) throws IOException {
+
+	
+	public void readFields(DataInput in) throws IOException 
+	{
+		first = in.readUTF();
+		second = in.readUTF();
+	}
+	
+	
+	
+	public void write(DataOutput out) throws IOException 
+	{
 		out.writeUTF(first);
 		out.writeUTF(second);
 	}
 
 	
-	public void readFields(DataInput in) throws IOException {
-		first = in.readUTF();
-		second = in.readUTF();
-	}
-
+	
+	/*********** 	CompareTo	 ***********/
+	
+	// Give precedence to the "*" containing pair: 
+	// When a "*" caracter is encountered on the right that particular object is pushed to the top.
 	
 	
-	
-    public int compareTo(PairWritable other) {
+    public int compareTo(PairWritable other) 
+    {
     	int checkArg = this.first.compareTo(other.getFirst());
     	if (checkArg != 0) {
     		return checkArg;
     	}
-    	if (this.second.toString().equals("*")) {
+    	
+    	if (this.second.equals("*")) {					// If 'this' pair contains "*" --> Make 'this' pair arrive first at the reducer
     		return -1;
     	}
-    	else if (other.getSecond().toString().equals("*")) {
+    	else if (other.getSecond().equals("*")) {		// If 'other' pair contains "*" --> Make 'other' pair arrive first at the reducer
     		return 1;
     	}
-    	return (this.second.compareTo(other.getSecond()));
+    	return (this.second.compareTo(other.getSecond()));		// Else, just compare usually
     	
     }
     
+    
+    
+	/*********** 	hashCode	 ***********/
+
     
     
     @Override
@@ -80,6 +106,8 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
     
     
     
+	/*********** 	equals	 ***********/
+
     
     @Override
     public boolean equals(Object other) {
@@ -106,6 +134,11 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
 
     
     
+	/*********** 	Order pair elements by lexicographical order	 ***********/
+
+    // We will use it to ensure <i, j> is equal to <j, i>, by sorting --> <i, j>
+    
+    
     public void orderPairLexicograph() 
 	{
     	if (first.equals("*") || second.equals("*") || second.equals("1")) 
@@ -114,7 +147,8 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
     	}
     	
 		int compare = first.compareTo(second);
-		if (compare > 0) {
+		if (compare > 0) 
+		{
 			String tmp = this.first;
 			this.first = this.second;
 			this.second = tmp;

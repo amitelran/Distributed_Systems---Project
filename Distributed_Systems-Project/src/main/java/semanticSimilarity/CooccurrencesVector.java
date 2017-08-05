@@ -253,6 +253,10 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	/*********** 	Compute co-occurrences vectors similarities 	 ***********/
 	
 	
+	// numerator = "mone" of fraction
+	// denominator = "mechane" of fraction
+	
+	
 	public VectorsSimilaritiesWritable vectorsSim(CooccurrencesVector otherVector)
 	{
 		MeasuresWritable thisMeasures = new MeasuresWritable();
@@ -387,7 +391,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		}
 		
 		
-		/*	Iterate through all features of other vector such that doesn't exist in this vector	*/
+		/*	Iterate through all features of 'other' vector, and pay attention only to such that don't exist in 'this' vector	*/
 		
 		for (Map.Entry<Feature, MeasuresWritable> otherEntry : otherMap.entrySet()) 
 		{
@@ -400,11 +404,11 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 			
 			thisMeasures = featuresMap.get(otherEntry.getValue());
 			
-			if (thisMeasures != null)								// Feature exists in both vectors -> already computed in previous loop, ignore
+			if (thisMeasures != null)					// Feature exists in both vectors -> already computed in previous loop, ignore
 			{
 				continue;
 			}
-			else 
+			else 										// Feature exists only in 'other' vector
 			{
 				/* Raw Frequency similarities */
 
@@ -442,7 +446,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setRawFrequency_EuclideanDis(Math.sqrt(rawFreq_EuclideanDis));
 		vectorsSimilarities.setRawFrequency_CosineSim(rawFreq_CosineSim_numerator / (this.normRawFrequency * otherVector.getNormRawFrequency()));
 		vectorsSimilarities.setRawFrequency_JaccardSim(rawFreq_JaccardSim_DiceSim_numerator / rawFreq_JaccardSim_denominator);
-		vectorsSimilarities.setRawFrequency_DiceSim(rawFreq_JaccardSim_DiceSim_numerator / rawFreq_DiceSim_denominator);				
+		vectorsSimilarities.setRawFrequency_DiceSim((2 * rawFreq_JaccardSim_DiceSim_numerator) / rawFreq_DiceSim_denominator);				
 	
 		/* Relative Frequency similarities */
 		
@@ -450,7 +454,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setRelativeFrequency_EuclideanDis(Math.sqrt(relFreq_EuclideanDis));
 		vectorsSimilarities.setRelativeFrequency_CosineSim(relFreq_CosineSim_numerator / (this.normRelativeFrequency * otherVector.getNormRelativeFrequency()));
 		vectorsSimilarities.setRelativeFrequency_JaccardSim(relFreq_JaccardSim_DiceSim_numerator / relFreq_JaccardSim_denominator);
-		vectorsSimilarities.setRelativeFrequency_DiceSim(relFreq_JaccardSim_DiceSim_numerator / relFreq_DiceSim_denominator);			
+		vectorsSimilarities.setRelativeFrequency_DiceSim((2 * relFreq_JaccardSim_DiceSim_numerator) / relFreq_DiceSim_denominator);			
 		
 		/* PMI Frequency similarities */
 
@@ -458,7 +462,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setPMI_EuclideanDis(Math.sqrt(pmi_EuclideanDis));
 		vectorsSimilarities.setPMI_CosineSim(pmi_CosineSim_numerator / (this.normPMI * otherVector.getNormPMI()));
 		vectorsSimilarities.setPMI_JaccardSim(pmi_JaccardSim_DiceSim_numerator / pmi_JaccardSim_denominator);
-		vectorsSimilarities.setPMI_DiceSim(pmi_JaccardSim_DiceSim_numerator / pmi_DiceSim_denominator);	
+		vectorsSimilarities.setPMI_DiceSim((2 * pmi_JaccardSim_DiceSim_numerator) / pmi_DiceSim_denominator);	
 		
 		/* T-test Frequency similarities */
 		
@@ -466,7 +470,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setTtest_EuclideanDis(Math.sqrt(tTest_EuclideanDis));
 		vectorsSimilarities.setTtest_CosineSim(tTest_CosineSim_numerator / (this.normTtest * otherVector.getNormTtest()));
 		vectorsSimilarities.setTtest_JaccardSim(tTest_JaccardSim_DiceSim_numerator / tTest_JaccardSim_denominator);
-		vectorsSimilarities.setTtest_DiceSim(tTest_JaccardSim_DiceSim_numerator / tTest_DiceSim_denominator);	
+		vectorsSimilarities.setTtest_DiceSim((2 * tTest_JaccardSim_DiceSim_numerator) / tTest_DiceSim_denominator);	
 		
 		return vectorsSimilarities;
 	}

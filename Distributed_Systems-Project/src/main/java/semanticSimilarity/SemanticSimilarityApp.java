@@ -50,13 +50,13 @@ public class SemanticSimilarityApp {
 
 	public static int NUM_FILES_TO_READ_FROM_CORPUS = 1;					// Determine number of input Google N-gram files to go over in corpus
 	public static String INPUT_CORPUS_BUCKET = "https://s3-eu-west-1.amazonaws.com/dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
-	public static String INPUT_BUCKET_NAME = "";
 	public static String OUTPUTFILENAME = "output.txt";
 	public static String BUCKET_NAME = "yoav.amit.dsp-project";
 	
 	
 
-	public static void main(String[] args) throws Exception { 	
+	public static void main(String[] args) throws Exception 
+	{ 	
 		String clusterId = null;
 		String stepId = null;
 		boolean hasIds = false;
@@ -85,7 +85,7 @@ public class SemanticSimilarityApp {
 		
 		// *************	 Set EMR (Elastic MapReduce) configuration 	*************
 		
-		try{
+		try {
 			System.out.print("Configuring EMR cluster... ");
 			AmazonElasticMapReduce mapReduce = AmazonElasticMapReduceClientBuilder.standard().withCredentials(credentials).withRegion(Regions.US_EAST_1).build();
 			System.out.println("Done configuring EMR cluster\n");
@@ -95,8 +95,8 @@ public class SemanticSimilarityApp {
 			System.out.print("Configuring Hadoop step... ");
 			
 			HadoopJarStepConfig hadoopJarStep = new HadoopJarStepConfig()
-					.withJar("s3n://"+BUCKET_NAME+"/SemanticSimilarityHadoop.jar")
-					.withArgs("s3n://"+INPUT_BUCKET_NAME,
+					.withJar("s3n://"+BUCKET_NAME+"/SemanticSimilarity.jar")
+					.withArgs("s3n://"+INPUT_CORPUS_BUCKET,
 							"s3n://"+BUCKET_NAME+"/output",
 							"s3n://"+BUCKET_NAME+"/gold_standard_dataset.txt"/*,
 							Integer.toString(numOfSimilarTweets)*/);
@@ -142,7 +142,8 @@ public class SemanticSimilarityApp {
 			
 			System.out.println("Started job flow with id: " + jobFlowId + " , Please wait...");
 
-			while(true) {
+			while(true) 
+			{
 				DescribeClusterRequest desc = new DescribeClusterRequest().withClusterId(runJobFlowResult.getJobFlowId());
 				DescribeClusterResult clusterResult = mapReduce.describeCluster(desc);
 				Cluster cluster = clusterResult.getCluster();
@@ -164,7 +165,8 @@ public class SemanticSimilarityApp {
 				if (status.equals(ClusterState.TERMINATED.toString())) {
 					break;
 				}
-				else if (status.equals(ClusterState.TERMINATED_WITH_ERRORS.toString())) {
+				else if (status.equals(ClusterState.TERMINATED_WITH_ERRORS.toString())) 
+				{
 					System.out.println(cluster.getStatus().getStateChangeReason().getMessage());
 					System.out.println("Please check logs on s3");
 					System.exit(1);
@@ -180,7 +182,7 @@ public class SemanticSimilarityApp {
 			
 			// *************	 Write output files to S3 bucket 	*************
 			
-			/*
+			
 			AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials(credentials).withRegion(Regions.US_EAST_1).build();
 
 			ObjectListing list = s3.listObjects(new ListObjectsRequest().withBucketName(BUCKET_NAME).withPrefix("output/part"));
@@ -189,7 +191,8 @@ public class SemanticSimilarityApp {
 			BufferedWriter out = new BufferedWriter(writer);
 			BufferedReader reader;
 			char[] cbuf = new char[1024];
-			for(S3ObjectSummary elem : list.getObjectSummaries()) {
+			for(S3ObjectSummary elem : list.getObjectSummaries()) 
+			{
 				S3Object outputFileObj = S3.downloadFile(s3, elem.getBucketName(), elem.getKey()); 
 
 				reader = new BufferedReader(new InputStreamReader(outputFileObj.getObjectContent()));		// Read content of input file object
@@ -223,10 +226,11 @@ public class SemanticSimilarityApp {
 
 			System.out.println("Deleting intermediate output files...");
 
-			for(S3ObjectSummary elem : list.getObjectSummaries()){            
+			for (S3ObjectSummary elem : list.getObjectSummaries())
+			{            
 				s3.deleteObject(new DeleteObjectRequest(elem.getBucketName(), elem.getKey()));
 			}
-			*/
+			
 			System.out.print("\n*** Semantic Similarity Algorithm is done! ***");
 		}
 		catch (AmazonServiceException ase) {

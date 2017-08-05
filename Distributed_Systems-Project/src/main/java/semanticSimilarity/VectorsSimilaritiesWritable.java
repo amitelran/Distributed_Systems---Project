@@ -3,6 +3,8 @@ package semanticSimilarity;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 
 
@@ -61,8 +63,44 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 		this.lexeme2 = lexeme2;		
 	}
 	
+	
+	/*********** 	Copy Constructor 	 ***********/
 
+	
+	VectorsSimilaritiesWritable(VectorsSimilaritiesWritable other) 
+	{
+		this.lexeme1 = other.getLexeme1();
+		this.lexeme2 = other.getLexeme2();
+				
+		// Raw Frequency measure
+		this.rawFreq_ManhattanDis = other.getRawFrequency_ManhattanDis();
+		this.rawFreq_EuclideanDis = other.getRawFrequency_EuclideanDis();
+		this.rawFreq_CosineSim = other.getRawFrequency_CosineSim();
+		this.rawFreq_JaccardSim = other.getRawFrequency_JaccardSim();
+		this.rawFreq_DiceSim = other.getRawFrequency_DiceSim();
 
+		// Relative Frequency measure
+		this.relativeFreq_ManhattanDis = other.getRelativeFrequency_ManhattanDis();
+		this.relativeFreq_EuclideanDis = other.getRelativeFrequency_EuclideanDis();
+		this.relativeFreq_CosineSim = other.getRelativeFrequency_CosineSim();
+		this.relativeFreq_JaccardSim = other.getRelativeFrequency_JaccardSim();
+		this.relativeFreq_DiceSim = other.getRelativeFrequency_DiceSim();
+
+		// PMI measure
+		this.pmi_ManhattanDis = other.getPMI_ManhattanDis();
+		this.pmi_EuclideanDis = other.getPMI_EuclideanDis();
+		this.pmi_CosineSim = other.getPMI_CosineSim();
+		this.pmi_JaccardSim = other.getPMI_JaccardSim();
+		this.pmi_DiceSim = other.getPMI_DiceSim();
+
+		// T-test measure
+		this.tTest_ManhattanDis = other.getTtest_ManhattanDis();
+		this.tTest_EuclideanDis = other.getTtest_EuclideanDis();
+		this.tTest_CosineSim = other.getTtest_CosineSim();
+		this.tTest_JaccardSim = other.getTtest_JaccardSim();
+		this.tTest_DiceSim = other.getTtest_DiceSim();
+	}
+	
 
 
 	/*********** 	Read fields	 ***********/
@@ -215,4 +253,40 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
     	}
 		return (this.lexeme2.compareTo(otherVecSimiliarities.getLexeme2()));
 	}
+	
+	
+	/*********** 	To Text	 ***********/
+	
+	
+	public Text toText()
+	{
+		String stringedSimilarities = "";
+		stringedSimilarities += "<" + this.lexeme1 + "," + this.lexeme2 + ">  similarities:\n";
+		stringedSimilarities += "\t Raw Frequency measures:\t\t" + 
+										"Manhattan distance: " + String.valueOf(this.rawFreq_ManhattanDis) + ",\t" + 
+										"Euclidean distance: " + String.valueOf(this.rawFreq_EuclideanDis) + ",\t" +
+										"Cosine similarity: " + String.valueOf(this.rawFreq_CosineSim) + ",\t" +
+										"Jaccard similarity: " + String.valueOf(this.rawFreq_JaccardSim) + ",\t" +
+										"Dice similarity: " + String.valueOf(this.rawFreq_DiceSim) + "\n";
+		stringedSimilarities += "\t Relative Frequency measures:\t\t" + 
+										"Manhattan distance: " + String.valueOf(this.relativeFreq_ManhattanDis) + ",\t" + 
+										"Euclidean distance: " + String.valueOf(this.relativeFreq_EuclideanDis) + ",\t" +
+										"Cosine similarity: " + String.valueOf(this.relativeFreq_CosineSim) + ",\t" +
+										"Jaccard similarity: " + String.valueOf(this.relativeFreq_JaccardSim) + ",\t" +
+										"Dice similarity: " + String.valueOf(this.relativeFreq_DiceSim) + "\n";
+		stringedSimilarities += "\t PMI measures:\t\t" + 
+										"Manhattan distance: " + String.valueOf(this.pmi_ManhattanDis) + ",\t" + 
+										"Euclidean distance: " + String.valueOf(this.pmi_EuclideanDis) + ",\t" +
+										"Cosine similarity: " + String.valueOf(this.pmi_CosineSim) + ",\t" +
+										"Jaccard similarity: " + String.valueOf(this.pmi_JaccardSim) + ",\t" +
+										"Dice similarity: " + String.valueOf(this.pmi_DiceSim) + "\n";
+		stringedSimilarities += "\t T-Test measures:\t\t" + 
+										"Manhattan distance: " + String.valueOf(this.tTest_ManhattanDis) + ",\t" + 
+										"Euclidean distance: " + String.valueOf(this.tTest_EuclideanDis) + ",\t" +
+										"Cosine similarity: " + String.valueOf(this.tTest_CosineSim) + ",\t" +
+										"Jaccard similarity: " + String.valueOf(this.tTest_JaccardSim) + ",\t" +
+										"Dice similarity: " + String.valueOf(this.tTest_DiceSim) + "\n";
+		return new Text(stringedSimilarities);
+	}
+
 }

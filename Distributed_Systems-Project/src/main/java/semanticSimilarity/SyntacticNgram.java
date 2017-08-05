@@ -23,13 +23,23 @@ public class SyntacticNgram implements Writable {
     public SyntacticNgram(){}
     
     
-    public SyntacticNgram(String ngram) throws ParseException, IOException {
+    public SyntacticNgram(String ngram) throws ParseException, IOException 
+    {
         String[] ngramSplit = ngram.split("/");
-    	
     	word = Stemmer.stemWord(ngramSplit[0].toLowerCase());
     	pos_tag = ngramSplit[1].toLowerCase();
     	dep_label = ngramSplit[2].toLowerCase();
     	head_index = Integer.parseInt(ngramSplit[3]);
+    	writtenToContext = false;
+    }
+    
+    
+    public SyntacticNgram(String word, String pos_tag, String dep_label, String head_index) throws ParseException, IOException 
+    {
+    	this.word = Stemmer.stemWord(word.toLowerCase());
+    	this.pos_tag = pos_tag.toLowerCase();
+    	this.dep_label = dep_label.toLowerCase();
+    	this.head_index = Integer.parseInt(head_index);
     	writtenToContext = false;
     }
     

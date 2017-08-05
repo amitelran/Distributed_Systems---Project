@@ -203,13 +203,13 @@ public class CooccurrencesVectorsHadoop {
 			PairWritable pair = new PairWritable();
 			Text value = new Text();
 
-			// Case token is of form: lexeme, word-dep_label --> split to make lexeme the key, and add feature to the value
+			// Case token is of form: "lexeme,word-dep_label" --> split to make lexeme the key, and add feature to the value
 			if (key.contains(",")) 
 			{
 				String[] split = key.split(",");
-				pair.setFirst(split[0]);								// create pair: <lexeme, "not-important">
-				pair.setSecond("1");									// Second in pair is not important
-				value.set(split[1] + "," + total_count.toString());  			// create: "feature, count"
+				pair.setFirst(split[0]);								// create pair: <lexeme, "1">   ("1" value is not really important)
+				pair.setSecond("1");									// Second in pair is not important (we'll call it "1")
+				value.set(split[1] + "," + total_count.toString());  			// create: "feature, count" as value
 			}
 
 			// Case token is lexeme only or feature only
@@ -228,13 +228,15 @@ public class CooccurrencesVectorsHadoop {
 	/********************************** 	Partitioner for MapReduce B	 **************************************/
 
 
-	// Custom partitioner to ensure pairs of the same left element are partitioned to the same reducer
+	// Custom partitioner to ensure pairs of the same left element are partitioned to the same reducer.
+	// Thus, making pair of the form <element, "*"> and <element, "1"> reach the same reducer
 
 
-	public class PairWritablePartitioner extends Partitioner<PairWritable,Text> {
+	public class PairWritablePartitioner extends Partitioner<PairWritable, Text> {
 
 		@Override
-		public int getPartition(PairWritable keyPair, Text value, int numPartitions) {
+		public int getPartition(PairWritable keyPair, Text value, int numPartitions) 
+		{
 			return keyPair.getFirst().hashCode() % numPartitions;
 		}
 	}
@@ -253,8 +255,11 @@ public class CooccurrencesVectorsHadoop {
 		private String totalLexemeCount;
 		private String lexeme;
 
-		// input: 		key: <feature, '*'> | <lexeme, '*'> | <lexeme, "1">, 		value: Iterable<summed count> | Iterable<<feature, total count lexeme & feature>>
-		// output: 		key: <feature, '*'> | feature, 		value: total count of feature | <lexeme, lexeme&feature count, lexeme's total count>
+		// input: 		key: 	<feature, '*'> | <lexeme, '*'> | <lexeme, '1'>, 		
+		//				value:  Iterable<summed count> 		   | Iterable<<feature, total count lexeme & feature>>
+		
+		// output: 		key: 	<feature, '*'> 		   | <feature, '1'>,		
+		//				value: 	total count of feature | <lexeme, lexeme&feature count, lexeme's total count>
 
 
 		public void reduce(PairWritable keyPair, Iterable<Text> countsOrFeatures, Context context) throws IOException, InterruptedException 
@@ -264,7 +269,7 @@ public class CooccurrencesVectorsHadoop {
 			// Case of <something, '*'>: '*' pair should be first in order
 			if (keyPair.getSecond().equals(asterixFlag)) 						
 			{
-				// Case the input key is of a feature
+				// Case the input key is of a feature (for example: "dog-subj") --> pass as is for future MapReduce phases
 				if (keyPair.getFirst().toString().contains("-")) 
 				{
 					for (Text value : countsOrFeatures) 
@@ -287,14 +292,14 @@ public class CooccurrencesVectorsHadoop {
 
 			}
 
-			// case of: <lexeme, '1'>
+			// case of: <lexeme, '1'> --> write <featureName, "1"> as key, "lexeme,lexeme & feature count, totalLexemeCount"
 			else 
 			{
 				lexeme = keyPair.getFirst().toString();
 				for (Text value : countsOrFeatures) 
 				{
-					String[] split = value.toString().split(",");					// split[0] = feature, split[1] = lexeme & feature count
-					context.write(new PairWritable(split[0], "1"), new Text(lexeme + "," + split[1] + "," + totalLexemeCount));	// value: <lexeme, lexeme & feature count, lexeme's total count>
+					String[] split = value.toString().split(",");			// split[0] = feature, split[1] = lexeme & feature count
+					context.write(new PairWritable(split[0], "1"), new Text(lexeme + "," + split[1] + "," + totalLexemeCount));	// value: <lexeme, lexeme&feature count, lexeme's total count>
 				}
 			}	
 		}
@@ -357,8 +362,11 @@ public class CooccurrencesVectorsHadoop {
 		/*******************************************	Reduce C	 ***********************************************/
 
 
-		// input: 		key: <feature, '*'> | <feature, '1'>, 	value: Iterable<summed count> | Iterable<<lexeme, lexeme&feature count, lexeme's total count>>
-		// output: 		key: feature, 							value: Feature data structure containing all computed measures
+		// input: 		key: 	<feature, '*'> 		   | <feature, '1'>, 	
+		//				value: 	Iterable<summed count> | Iterable<<lexeme, lexeme&feature count, lexeme's total count>>
+		
+		// output: 		key: 	feature, 							
+		//				value:  Feature data structure containing all computed measures
 
 
 		public void reduce(PairWritable featureKey, Iterable<Text> values, Context context) throws IOException, InterruptedException 
@@ -374,7 +382,7 @@ public class CooccurrencesVectorsHadoop {
 				}
 			}
 
-			// Case of <feature, '1'>: 	'value' is of triplet form:	 <lexeme, lexeme&feature count, lexeme's total count>
+			// Case of <feature, '1'>: 	value is of triplet form:	 <lexeme, lexeme&feature count, lexeme's total count>
 			else 
 			{
 				for (Text value : values) 
@@ -462,10 +470,6 @@ public class CooccurrencesVectorsHadoop {
 	
 	public static class VectorConstructorReducer extends Reducer<Text, Feature, Text, CooccurrencesVector> 
 	{
-		
-		
-		/*******************************************	Reduce D	 ***********************************************/
-
 
 		// input: 		key: lexeme_name, 	value: Iterable<Features>
 		// output: 		key: lexeme_name, 	value: Lexeme's Co-occurrences vector
@@ -597,7 +601,8 @@ public class CooccurrencesVectorsHadoop {
 		@Override
 		protected void setup(Context context) throws IOException, InterruptedException 
 		{
-			if (context.getCacheFiles() != null && context.getCacheFiles().length > 0) {
+			if (context.getCacheFiles() != null && context.getCacheFiles().length > 0) 
+			{
 				URI mappingFileUri = context.getCacheFiles()[0];
 
 				if (mappingFileUri != null) {
@@ -616,17 +621,16 @@ public class CooccurrencesVectorsHadoop {
 		/*********** 	Read gold standard dataset file	 ***********/
 
 
-		private void readGoldStandardFile(String path) {
+		private void readGoldStandardFile(String path) 
+		{
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 				String wordsPairsLine = null;
 				while((wordsPairsLine = bufferedReader.readLine()) != null) 
 				{
 					String[] splitWords = wordsPairsLine.split("\\t");
-					String word1 = Stemmer.stemWord(splitWords[0]);
-					String word2 = Stemmer.stemWord(splitWords[1]);
-					goldStandardWords.add(word1);
-					goldStandardWords.add(word2);
+					goldStandardWords.add(Stemmer.stemWord(splitWords[0]));
+					goldStandardWords.add(Stemmer.stemWord(splitWords[1]));
 				}
 				bufferedReader.close();
 			} 
@@ -655,7 +659,7 @@ public class CooccurrencesVectorsHadoop {
 			
 			for (String otherLexeme : goldStandardWords)		// Send all <lexeme, otherLexeme> pairs, besides the same lexeme pair
 			{
-				if (otherLexeme.equals(lexeme)) {				// If the same lexeme, continue without sending a pair
+				if (otherLexeme.equals(lexeme)) {				// Don't send same lexeme pairs
 					continue;
 				}
 				PairWritable lexemesPair = new PairWritable(lexeme, otherLexeme);
@@ -674,39 +678,44 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	
-	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, VectorsSimilaritiesWritable> {
-
-
-
-		/*******************************************	Reduce E	 ***********************************************/
+	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, Text> {
 
 
 		// input: 		key: 	<lexeme_i, lexeme_j>, 	value: Iterable<CooccurrencesVector>		
-		// output: 		key: 	<lexeme_i, lexeme_j> 	value: Vectors similarities data structure
+		// output: 		key: 	<lexeme_i, lexeme_j> 	value: Vectors similarities as text
 
 	
 		public void reduce(PairWritable lexemesPair, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
 		{
+			boolean leftExists = false;
+			boolean rightExists = false;
 			CooccurrencesVector leftVector = new CooccurrencesVector();
 			CooccurrencesVector rightVector = new CooccurrencesVector();
-			VectorsSimilaritiesWritable vectorsSim = new VectorsSimilaritiesWritable();
+			Text similaritiesOutput = new Text();
 			
 			for (CooccurrencesVector vector : vectors)			// Get both vectors
 			{
 				if (vector.getLexeme().equals(lexemesPair.getFirst()))			// Set left vector
 				{
+					leftExists = true;
 					leftVector.copyVector(vector); 
 				}
 				else if (vector.getLexeme().equals(lexemesPair.getSecond()))	// Set right vector
 				{
+					rightExists = true;
 					rightVector.copyVector(vector); 
 				}
 			}
 			
-			// Compute similarities and write to output
+			// Ensure both the lexemes exist in corpus.
+			// (since we sent all pairs from gold standard, which some might not appear in our corpus)
 			
-			vectorsSim = leftVector.vectorsSim(rightVector);
-			context.write(lexemesPair, vectorsSim);
+			if (leftExists && rightExists) 				
+			{
+				VectorsSimilaritiesWritable vectorsSim = leftVector.vectorsSim(rightVector);	// Compute similarities and write to output
+				similaritiesOutput = vectorsSim.toText();
+				context.write(lexemesPair, similaritiesOutput);
+			}
 		}
 	}
 	

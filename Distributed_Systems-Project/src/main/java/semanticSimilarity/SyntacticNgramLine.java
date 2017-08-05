@@ -34,8 +34,13 @@ public class SyntacticNgramLine implements Writable {
         
         String[] synNgramsSplit = lineSplit[1].split("\\s+");		// Split syntactic ngrams by whitespace (every split is of form "word/pos-tag/dep-label/head-index")
         ngrams = new SyntacticNgram[synNgramsSplit.length];
-        for (int i = 0; i < synNgramsSplit.length; i++) {
-        	SyntacticNgram synNgram = new SyntacticNgram(synNgramsSplit[i]);
+        for (int i = 0; i < synNgramsSplit.length; i++) 
+        {
+        	String[] ngramSplits = synNgramsSplit[i].split("/");
+        	if (ngramSplits.length != 4) {							// Ignore cases in which ngram is not valid word
+        		continue;
+        	}
+        	SyntacticNgram synNgram = new SyntacticNgram(ngramSplits[0], ngramSplits[1], ngramSplits[2], ngramSplits[3]);
         	ngrams[i] = synNgram;
         }
         

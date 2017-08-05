@@ -1,32 +1,54 @@
 package semanticSimilarity;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.util.Random;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 
+import weka.classifiers.Evaluation;
+import weka.classifiers.trees.RandomForest;
+import weka.core.Instances;
+
 public class Weka {
 	
 	
 	
-	/***************	 Perform WEKA evaluation	 ***************/
+	/***************	 Perform WEKA evaluation	  ***************/
 
 	
-	public static void evaluateWEKA(String path) 
+	public static void evaluateWEKA(String path) throws Exception 
 	{
-		try {
-		    PrintWriter writer = new PrintWriter(path, "UTF-8");
-		    create_ARFF_Header(writer);
-		    writer.close();
-		} 
-		catch (IOException e) {
-		   System.err.println("Error occured while creating Weka file\n");
+		BufferedReader buffReader = null;
+		try 
+		{
+			buffReader = new BufferedReader(new FileReader(path));		// Read the vectors similarities file
+			Instances data = new Instances(buffReader);					// Read data into Instances object using the buffered reader
+			data.setClassIndex(data.numAttributes() - 1);				// This means we are setting the 'similar' attribute (since it's placed last in attributes)
+			
+			buffReader.close();
+			
+			RandomForest randForest = new RandomForest();						// Set random forest classifier
+			Evaluation eval = new Evaluation(data);
+			eval.crossValidateModel(randForest, data, 10, new Random(1));		// Performs a 10 fold cross-validation for a classifier on a set of instances
+			
+			System.out.println(eval.toSummaryString(("\nWeka Results\n===========\n"), true));
+			System.out.println(eval.fMeasure(1) + " " + eval.precision(1) + " " + eval.recall(1));		// F1 measure, precision, recall stats
+		}
+		
+		catch (FileNotFoundException e1) 
+		{
+			System.err.println("Error occured in evaluateWEKA\n");
+			e1.printStackTrace();
 		}
 		return;
 	}
@@ -95,7 +117,6 @@ public class Weka {
 
 		writer.println("@ATTRIBUTE word1	STRING");
 		writer.println("@ATTRIBUTE word2	STRING");
-		writer.println("@ATTRIBUTE similar	{true,false}");
 		
 		/* Raw Frequency Measures */
 		writer.println("@ATTRIBUTE raw_freq_manhattan	NUMERIC");
@@ -124,6 +145,8 @@ public class Weka {
 		writer.println("@ATTRIBUTE t_test_cosine	NUMERIC");
 		writer.println("@ATTRIBUTE t_test_jaccard	NUMERIC");
 		writer.println("@ATTRIBUTE t_test_dice	NUMERIC");
+		
+		writer.println("@ATTRIBUTE similar	{true,false}");
 		
 		writer.println();
 		writer.println("@DATA");

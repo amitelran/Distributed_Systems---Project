@@ -34,5 +34,6 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="C:/Users/Amir/Dropbox/מודולו/תכנות מערכות מבוזרות/Assignment3/jars/hadoop-common-2.2.0.jar"/>
 	<classpathentry kind="lib" path="C:/Users/Amir/Dropbox/מודולו/תכנות מערכות מבוזרות/Assignment3/jars/hadoop-mapreduce-client-core-2.2.0.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Amir/Dropbox/מודולו/תכנות מערכות מבוזרות/Assignment3/jars/weka-3.7.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

@@ -266,7 +266,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	
 	
 	public Text toText()
-	{
+	{	
 		String stringedSimilarities = "";
 		stringedSimilarities += "<" + this.lexeme1 + "," + this.lexeme2 + ">  similarities:\n";
 		stringedSimilarities += "\t Raw Frequency measures:\t\t" + 
@@ -294,6 +294,48 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 										"Jaccard similarity: " + String.valueOf(this.tTest_JaccardSim) + ",\t" +
 										"Dice similarity: " + String.valueOf(this.tTest_DiceSim) + "\n";
 		return new Text(stringedSimilarities);
+	}
+	
+	
+	
+	/*********** 	To String as WEKA ARFF file format Text	 ***********/
+	
+	
+	public String toString()
+	{	
+		String stringedSimilarities = "";
+		stringedSimilarities += this.lexeme1 + "," + this.lexeme2 + ",";
+		stringedSimilarities += String.valueOf(this.rawFreq_ManhattanDis) + "," + 
+								String.valueOf(this.rawFreq_EuclideanDis) + "," +
+								String.valueOf(this.rawFreq_CosineSim) + "," +
+								String.valueOf(this.rawFreq_JaccardSim) + "," +
+								String.valueOf(this.rawFreq_DiceSim) + "," +
+								
+								String.valueOf(this.relativeFreq_ManhattanDis) + "," + 
+								String.valueOf(this.relativeFreq_EuclideanDis) + "," +
+								String.valueOf(this.relativeFreq_CosineSim) + "," +
+								String.valueOf(this.relativeFreq_JaccardSim) + "," +
+								String.valueOf(this.relativeFreq_DiceSim) + "," + 
+
+								String.valueOf(this.pmi_ManhattanDis) + "," + 
+								String.valueOf(this.pmi_EuclideanDis) + "," +
+								String.valueOf(this.pmi_CosineSim) + "," +
+								String.valueOf(this.pmi_JaccardSim) + "," +
+								String.valueOf(this.pmi_DiceSim) + "," + 
+
+								String.valueOf(this.tTest_ManhattanDis) + "," + 
+								String.valueOf(this.tTest_EuclideanDis) + "," +
+								String.valueOf(this.tTest_CosineSim) + "," +
+								String.valueOf(this.tTest_JaccardSim) + "," +
+								String.valueOf(this.tTest_DiceSim) + ","; 
+								
+		if (this.similar) {
+			stringedSimilarities += "true\n";
+		}
+		else {
+			stringedSimilarities += "false\n";
+		}
+		return stringedSimilarities;
 	}
 
 }

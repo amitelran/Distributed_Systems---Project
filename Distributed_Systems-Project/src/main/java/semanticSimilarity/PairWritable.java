@@ -155,21 +155,15 @@ public class PairWritable implements WritableComparable<PairWritable> {
 	}
     
     
-    public void setFirst(String first) {
-        this.first = first;
-    }
+    public void setFirst(String first) { this.first = first; }
 
-    public void setSecond(String second) {
-        this.second = second;
-    }
+    public void setSecond(String second) { this.second = second; }
 
-    public String getFirst() {
-        return first;
-    }
+    public String getFirst() { return first; }
 
-    public String getSecond() {
-        return second;
-    }
+    public String getSecond() { return second; }
     
+    
+    public String toString() { return ("<" + this.first + "," + this.second + ">"); }
     
 }

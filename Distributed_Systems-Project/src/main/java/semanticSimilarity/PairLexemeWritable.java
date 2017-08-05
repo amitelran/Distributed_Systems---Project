@@ -91,7 +91,7 @@ public class PairLexemeWritable implements WritableComparable<PairWritable> {
         	return false;
         }
 
-		PairWritable otherPair = (PairWritable) other;
+		PairLexemeWritable otherPair = (PairLexemeWritable) other;
 
         if (second != null ? !second.equals(otherPair.getSecond()) : otherPair.getSecond() != null) {
         	return false;

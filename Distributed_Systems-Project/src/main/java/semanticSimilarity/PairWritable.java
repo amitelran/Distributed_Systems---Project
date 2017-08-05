@@ -100,7 +100,7 @@ public class PairWritable implements WritableComparable<PairWritable> {
     public int hashCode() {
     	int result = 17;
         result = 31 * result + first.hashCode();
-        result = 31 * result + second.hashCode();
+        //result = 31 * result + second.hashCode();
         return result;
     }
     
@@ -119,8 +119,7 @@ public class PairWritable implements WritableComparable<PairWritable> {
         	return false;
         }
 
-		@SuppressWarnings("unchecked")
-		Pair<String, String> otherPair = (Pair<String,String>) other;
+		PairWritable otherPair = (PairWritable) other;
 
         if (second != null ? !second.equals(otherPair.getSecond()) : otherPair.getSecond() != null) {
         	return false;

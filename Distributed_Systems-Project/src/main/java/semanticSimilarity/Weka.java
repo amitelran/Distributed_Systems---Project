@@ -2,6 +2,10 @@ package semanticSimilarity;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
+
+import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
 
 public class Weka {
 	
@@ -28,14 +32,33 @@ public class Weka {
 	/***************	 Append data to ARFF file	 ***************/
 
 	
-	public static void append_data_ARFF_File(String path, ) 
+	public static void append_data_ARFF_File(String path, URI uri) 
 	{
+		
 		try {
 		    PrintWriter writer = new PrintWriter(path, "UTF-8");
 		    writer.close();
 		} 
 		catch (IOException e) {
-		   System.err.println("Error occured while creating Weka file\n");
+		   System.err.println("Error occured in append_data_ARFF_File\n");
+		}
+		return path;
+	}
+	
+	
+	
+	/***************	 Append data to ARFF file	 ***************/
+
+	
+	public static void readFromS3file_to_ARFF_File(String path, String bucketName, String fileKey) 
+	{
+		S3Object s3object = s3.getObject(new GetObjectRequest(bucketName, fileKey));
+		try {
+		    PrintWriter writer = new PrintWriter(path, "UTF-8");
+		    writer.close();
+		} 
+		catch (IOException e) {
+		   System.err.println("Error occured in append_data_ARFF_File\n");
 		}
 		return path;
 	}

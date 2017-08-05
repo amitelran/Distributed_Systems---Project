@@ -7,8 +7,6 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -236,7 +234,7 @@ public class CooccurrencesVectorsHadoop {
 		@Override
 		public int getPartition(PairWritable keyPair, Text value, int numPartitions) 
 		{
-			return keyPair.getFirst().hashCode() % numPartitions;
+			return (keyPair.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions;
 		}
 	}
 
@@ -329,8 +327,7 @@ public class CooccurrencesVectorsHadoop {
 		}
 	}
 
-
-
+	
 
 	/*******************************************************************************************************/
 	/******************************************** 	Reducer C	 *******************************************/
@@ -370,7 +367,13 @@ public class CooccurrencesVectorsHadoop {
 
 		public void reduce(PairWritable featureKey, Iterable<Text> values, Context context) throws IOException, InterruptedException 
 		{
-
+			for (Text value : values) 
+			{
+				totalFeatureCount = Integer.parseInt(value.toString());
+				break;
+			}
+			
+			
 			// Case of <feature, '*'>: We expect '*' pair to be the first in order
 			if (featureKey.getSecond().equals(asterixFlag)) 			
 			{
@@ -806,6 +809,7 @@ public class CooccurrencesVectorsHadoop {
 		job3.setJarByClass(CooccurrencesVectorsHadoop.class);
 		
 		job3.setMapperClass(IdentityMapper.class);
+		job3.setPartitionerClass(PairWritablePartitioner.class);
 		job3.setReducerClass(MeasuresOfAssocWithContextReducer.class);
 		
 		job3.setMapOutputKeyClass(PairWritable.class);

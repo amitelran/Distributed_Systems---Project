@@ -7,7 +7,7 @@ import java.io.IOException;
 import org.apache.hadoop.io.WritableComparable;
 
 
-public class PairWritable extends Pair<String, String> implements WritableComparable<PairWritable> {
+public class PairWritable implements WritableComparable<PairWritable> {
 	
 	protected String first;
 	protected String second;
@@ -154,6 +154,23 @@ public class PairWritable extends Pair<String, String> implements WritableCompar
 			this.second = tmp;
 		}
 	}
+    
+    
+    public void setFirst(String first) {
+        this.first = first;
+    }
+
+    public void setSecond(String second) {
+        this.second = second;
+    }
+
+    public String getFirst() {
+        return first;
+    }
+
+    public String getSecond() {
+        return second;
+    }
 
 
 }

@@ -124,7 +124,7 @@ public class CooccurrencesVectorsHadoop {
 					headIndexNgram = ngrams[currNgram.getHeadIndex() - 1];		// Get the 'head' word which points on current Ngram
 				}
 				
-				String headIndexWord = headIndexNgram.getWord();						// Stem head-index word
+				String headIndexWord = headIndexNgram.getWord();					
 
 				// If the head-index word is not a part of the gold standard dataset --> no need to build co-occurrences vector
 				if (!(goldStandardWords.contains(headIndexWord))) {
@@ -767,8 +767,6 @@ public class CooccurrencesVectorsHadoop {
 		
 		job1.addCacheFile(new URI(args[2] + "#word-relatedness"));
 		
-		Log log = LogFactory.getLog(TokenizerMapper.class);
-
 		if(!job1.waitForCompletion(true))
 			System.exit(1);
 		

@@ -1,9 +1,13 @@
 package semanticSimilarity;
 
+import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URI;
 
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 
@@ -29,38 +33,32 @@ public class Weka {
 	
 	
 	
-	/***************	 Append data to ARFF file	 ***************/
+	
+	/***************	 Read S3 output file data, and append  to ARFF file	 ***************/
 
 	
-	public static void append_data_ARFF_File(String path, URI uri) 
+	public static void readFromS3file_to_ARFF_File(String path, AmazonS3 s3, String bucketName, String fileKey) 
 	{
-		
 		try {
-		    PrintWriter writer = new PrintWriter(path, "UTF-8");
-		    writer.close();
+			PrintWriter writer = new PrintWriter(new FileWriter(path, true));			/* append = true */
+			try 
+			{
+				S3Object s3object = s3.getObject(new GetObjectRequest(bucketName, fileKey));
+				BufferedReader reader = new BufferedReader(new InputStreamReader(s3object.getObjectContent()));
+				String line;
+				while((line = reader.readLine()) != null) 
+				{
+					writer.println(line);
+				}
+			}
+			finally {
+			    writer.close();
+			}
 		} 
 		catch (IOException e) {
 		   System.err.println("Error occured in append_data_ARFF_File\n");
 		}
-		return path;
-	}
-	
-	
-	
-	/***************	 Append data to ARFF file	 ***************/
-
-	
-	public static void readFromS3file_to_ARFF_File(String path, String bucketName, String fileKey) 
-	{
-		S3Object s3object = s3.getObject(new GetObjectRequest(bucketName, fileKey));
-		try {
-		    PrintWriter writer = new PrintWriter(path, "UTF-8");
-		    writer.close();
-		} 
-		catch (IOException e) {
-		   System.err.println("Error occured in append_data_ARFF_File\n");
-		}
-		return path;
+		return;
 	}
 	
 	

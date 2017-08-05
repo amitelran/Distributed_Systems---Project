@@ -248,7 +248,6 @@ public class CooccurrencesVectorsHadoop {
 	public static class FeatureInfoReducer extends Reducer<PairWritable, Text, PairWritable, Text> {	
 
 
-		private String asterixFlag = "*";		// "*" used for order inversion
 		private String totalLexemeCount;
 		private String lexeme;
 
@@ -264,7 +263,7 @@ public class CooccurrencesVectorsHadoop {
 			int sum = 0;
 
 			// Case of <something, '*'>: '*' pair should be first in order
-			if (keyPair.getSecond().equals(asterixFlag)) 						
+			if (keyPair.getSecond().equals("*")) 						
 			{
 				// Case the input key is of a feature (for example: "dog-subj") --> pass as is for future MapReduce phases
 				if (keyPair.getFirst().toString().contains("-")) 
@@ -296,6 +295,9 @@ public class CooccurrencesVectorsHadoop {
 				for (Text value : countsOrFeatures) 
 				{
 					String[] split = value.toString().split(",");			// split[0] = feature, split[1] = lexeme & feature count
+					if (split.length < 3) {
+						continue;
+					}
 					context.write(new PairWritable(split[0], "1"), new Text(lexeme + "," + split[1] + "," + totalLexemeCount));	// value: <lexeme, lexeme&feature count, lexeme's total count>
 				}
 			}	
@@ -335,7 +337,6 @@ public class CooccurrencesVectorsHadoop {
 
 	public static class MeasuresOfAssocWithContextReducer extends Reducer<PairWritable, Text, Text, Feature> {
 
-		private String asterixFlag = "*";
 		private int totalFeatureCount = 0;
 		private long totalLexemesCorpus = 0;
 		private long totalFeaturesCorpus = 0;
@@ -367,15 +368,9 @@ public class CooccurrencesVectorsHadoop {
 
 		public void reduce(PairWritable featureKey, Iterable<Text> values, Context context) throws IOException, InterruptedException 
 		{
-			for (Text value : values) 
-			{
-				totalFeatureCount = Integer.parseInt(value.toString());
-				break;
-			}
-			
 			
 			// Case of <feature, '*'>: We expect '*' pair to be the first in order
-			if (featureKey.getSecond().equals(asterixFlag)) 			
+			if (featureKey.getSecond().equals("*")) 			
 			{
 				for (Text value : values) 
 				{
@@ -390,6 +385,9 @@ public class CooccurrencesVectorsHadoop {
 				for (Text value : values) 
 				{
 					String[] split = value.toString().split(",");	// split[0] = lexeme, split[1] = lexeme&feature count, split[2] = lexeme's total count
+					if (split.length < 3) {
+						continue;
+					}
 					Feature feature = new Feature(featureKey.getFirst().toString(), split[0], totalFeatureCount, Integer.parseInt(split[2]));
 					feature.computeAllMeasures(Integer.parseInt(split[1]), totalLexemesCorpus, totalFeaturesCorpus);
 					context.write(new Text(featureKey.getFirst()), feature);			// output: feature_name, featureData

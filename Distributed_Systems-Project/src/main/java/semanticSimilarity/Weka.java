@@ -15,6 +15,24 @@ public class Weka {
 	
 	
 	
+	/***************	 Perform WEKA evaluation	 ***************/
+
+	
+	public static void evaluateWEKA(String path) 
+	{
+		try {
+		    PrintWriter writer = new PrintWriter(path, "UTF-8");
+		    create_ARFF_Header(writer);
+		    writer.close();
+		} 
+		catch (IOException e) {
+		   System.err.println("Error occured while creating Weka file\n");
+		}
+		return;
+	}
+	
+	
+	
 	/***************	 Create ARFF file for WEKA	 ***************/
 
 	

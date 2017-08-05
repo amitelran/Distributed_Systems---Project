@@ -170,6 +170,6 @@ public class PairWritable implements WritableComparable<PairWritable> {
     public String getSecond() {
         return second;
     }
-
-
+    
+    
 }

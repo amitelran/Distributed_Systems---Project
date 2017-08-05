@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -433,35 +435,7 @@ public class CooccurrencesVectorsHadoop {
 		}
 	}
 	
-	
-
-	/*******************************************************************************************************/
-	/******************************************** 	Mapper D - Hidden	 *******************************************/
-	/****************************	Don't pay attention, but don't erase just yet! ***************************/
-	
-	// We will want to be able to compare two co-occurrences vectors.
-	// Thus, every feature (= vector coordinate) that corresponds to both vectors will be send to the reducer as: <vector1 feature_i, vector2 feature_i>
-	// For all features that exist only in one of the vectors, we will send <vector1 feature_j, NULL> or <NULL, vector2 feature_j>
-	// For that, we will create and partition three kinds of keys:
-	//							<lexeme1, lexeme2>, <lexeme1, '*'>, <'*', lexeme2>
-	
-	// We will need to create our custom partitioner for that cause, to make sure each key of the three forms will reach the same reducer.
-	
-	/*
-	public static class IdentityMapperFeaturesData extends Mapper<Text, Feature, Text, Feature> {
-
 		
-		// input: 		key: feature_name, 			value: Feature data structure
-		// output: 		key: feature_name, 			value: Feature data structure
-
-
-		public void map(Text featureKey, Feature featureValue, Context context) throws IOException,  InterruptedException 
-		{
-			context.write(featureKey, featureValue);
-		}
-	}
-	*/
-	
 	
 	/*******************************************************************************************************/
 	/******************************************** 	Reducer D 	 *******************************************/
@@ -571,29 +545,6 @@ public class CooccurrencesVectorsHadoop {
 				
 		private Set<String> goldStandardWords = new HashSet<String>();		
 		
-		
-		/*******************************************	Setup num of buckets to send each vector to	 ***********************************************/
-		
-		
-		// reference to fuzzy join idea implementation: https://github.com/bkimmett/fuzzyjoin
-
-		//private int fuzzy_join_num_buckets;
-		//private IntWritable indexedKey = new IntWritable();
-		/*
-		@Override
-		public void setup(Context context) throws IOException, InterruptedException{
-			Configuration conf = context.getConfiguration();
-			Cluster cluster = new Cluster(conf);
-			Job currentJob = cluster.getJob(context.getJobID());
-			fuzzy_join_num_buckets = (int) currentJob.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_LEXEMES).getValue();		// Get overall counter of all lexemes
-			if (fuzzy_join_num_buckets < 1) {
-				fuzzy_join_num_buckets = 1;
-			}
-		}
-		
-		*/
-		
-		
 
 		/*********** 	Setup - Read gold standard dataset words before starting the mapper	 ***********/
 
@@ -679,14 +630,75 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, Text> {
+		
+		
+		private Map<PairLexemeWritable, Boolean> goldStandardPairs = new HashMap<PairLexemeWritable, Boolean>();
+
+		
+		/*********** 	Read gold standard dataset words before starting the mapper	 ***********/
 
 
+		@Override
+		protected void setup(Context context) throws IOException, InterruptedException 
+		{
+			if (context.getCacheFiles() != null && context.getCacheFiles().length > 0) {
+				URI mappingFileUri = context.getCacheFiles()[0];
+
+				if (mappingFileUri != null) {
+					readGoldStandardFile("./word-relatedness");
+				} 
+				else {
+					System.out.println(">>>>>> NO MAPPING FILE");
+				}
+			} 
+			else {
+				System.out.println(">>>>>> NO CACHE FILES AT ALL");
+			}
+		}
+
+
+		/*********** 	Read gold standard dataset file	 ***********/
+
+
+		private void readGoldStandardFile(String path) {
+			try {
+				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+				String wordsPairsLine = null;
+				while((wordsPairsLine = bufferedReader.readLine()) != null) 
+				{
+					String[] splitWords = wordsPairsLine.split("\\t");
+					if (splitWords[2].equals("True")) 
+					{
+						PairLexemeWritable pairLexemes = new PairLexemeWritable(Stemmer.stemWord(splitWords[0]), Stemmer.stemWord(splitWords[1]));
+						pairLexemes.orderPairLexicograph();
+						goldStandardPairs.put(pairLexemes, true);
+					}
+					else 
+					{
+						PairLexemeWritable pairLexemes = new PairLexemeWritable(Stemmer.stemWord(splitWords[0]), Stemmer.stemWord(splitWords[1]));
+						pairLexemes.orderPairLexicograph();
+						goldStandardPairs.put(pairLexemes, false);
+					}
+				}
+				bufferedReader.close();
+			} 
+			catch(IOException ex) {
+				System.err.println("Exception while reading gold standard dataset file: " + ex.getMessage());
+			}
+		}
+
+		
+		/*********** 	Reduce E	 ***********/
+
+		
 		// input: 		key: 	<lexeme_i, lexeme_j>, 	value: Iterable<CooccurrencesVector>		
 		// output: 		key: 	<lexeme_i, lexeme_j> 	value: Vectors similarities as text
 
 	
 		public void reduce(PairWritable lexemesPair, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
 		{
+			PairLexemeWritable lexPair = new PairLexemeWritable(lexemesPair.getFirst(), lexemesPair.getSecond());
+			boolean similarity = goldStandardPairs.get(lexPair);
 			boolean leftExists = false;
 			boolean rightExists = false;
 			CooccurrencesVector leftVector = new CooccurrencesVector();
@@ -712,7 +724,7 @@ public class CooccurrencesVectorsHadoop {
 			
 			if (leftExists && rightExists) 				
 			{
-				VectorsSimilaritiesWritable vectorsSim = leftVector.vectorsSim(rightVector);	// Compute similarities and write to output
+				VectorsSimilaritiesWritable vectorsSim = leftVector.vectorsSim(rightVector, similarity);	// Compute similarities and write to output
 				similaritiesOutput = vectorsSim.toText();
 				context.write(lexemesPair, similaritiesOutput);
 			}

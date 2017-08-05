@@ -1,14 +1,8 @@
 package semanticSimilarity;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,28 +50,14 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public void write(DataOutput out) throws IOException 
 	{
 		out.writeUTF(lexeme);
+		
+		int mapSize = featuresMap.size();
+		out.writeInt(mapSize);			// 'Push' size of map
 
-		// Convert hash map into bytes array in order to write to DataOutput
-
-		ByteArrayOutputStream byteArrOutputStream = new ByteArrayOutputStream();
-		ObjectOutput outputConvert = null;
-
-		try {
-			outputConvert = new ObjectOutputStream(byteArrOutputStream);   
-			outputConvert.writeObject(featuresMap);
-			outputConvert.flush();
-			byte[] byteConvertedMap = byteArrOutputStream.toByteArray();
-
-			out.writeInt(byteConvertedMap.length); 				// 'Push' size of bytes array to know how much bytes needed to read
-			out.write(byteConvertedMap);
+		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
+		{
+			entry.getKey().write(out);
 		} 
-		finally {
-			try {
-				byteArrOutputStream.close();
-			} catch (IOException ex) {
-				System.out.println("Byte Array output stream close exception occured\n");
-			}
-		}
 		
 		out.writeDouble(normRawFrequency);
 		out.writeDouble(normRelativeFrequency); 
@@ -91,35 +71,19 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 
 
-	@SuppressWarnings("unchecked")
 	public void readFields(DataInput in) throws IOException 
 	{
 		lexeme = in.readUTF();
-		int bytesArraySize = in.readInt();				// Read 'pushed' integer indicating size of bytes array
-
-		byte[] bytesArray = new byte[bytesArraySize];
-		in.readFully(bytesArray);
-
-		/* Convert bytes array into hash map */
-
-		ByteArrayInputStream bytesInputStream = new ByteArrayInputStream(bytesArray);
-		ObjectInput inputStream = null;
-		try {
-			inputStream = new ObjectInputStream(bytesInputStream);
-			featuresMap = (Map<Feature, MeasuresWritable>) inputStream.readObject(); 
-		} 
-		catch (ClassNotFoundException e) {
-			System.out.println("Error occurred while reading object from DataInput");
-		} 
-		finally {
-			try {
-				if (inputStream != null) {
-					inputStream.close();
-				}
-			} catch (IOException ex) {
-				System.out.println("Input stream close exception occured\n");
-			}
+		int mapSize = in.readInt();				// Read 'pushed' size of map
+		Map<Feature, MeasuresWritable> readMap = new HashMap<Feature, MeasuresWritable>();
+		
+		for (int i = 0; i < mapSize; i++)
+		{
+			Feature feature = new Feature();
+			feature.readFields(in);
+			readMap.put(feature, feature.getMeasures());
 		}
+		this.featuresMap = readMap;
 		
 		normRawFrequency = in.readDouble();
 		normRelativeFrequency = in.readDouble();
@@ -257,11 +221,11 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	// denominator = "mechane" of fraction
 	
 	
-	public VectorsSimilaritiesWritable vectorsSim(CooccurrencesVector otherVector)
+	public VectorsSimilaritiesWritable vectorsSim(CooccurrencesVector otherVector, boolean similar)
 	{
 		MeasuresWritable thisMeasures = new MeasuresWritable();
 		MeasuresWritable otherMeasures = new MeasuresWritable();
-		VectorsSimilaritiesWritable vectorsSimilarities = new VectorsSimilaritiesWritable(this.lexeme, otherVector.getLexeme());
+		VectorsSimilaritiesWritable vectorsSimilarities = new VectorsSimilaritiesWritable(this.lexeme, otherVector.getLexeme(), similar);
 		double thisRawFreq;
 		double thisRelFreq;
 		double thisPMI;

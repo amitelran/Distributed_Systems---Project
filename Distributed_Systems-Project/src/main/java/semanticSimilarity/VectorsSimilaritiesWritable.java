@@ -13,6 +13,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 
 	protected String lexeme1;
 	protected String lexeme2;
+	protected boolean similar;
 	
 	/* 4 measures of association with context * 5 similarity equations = 20 combinations of vectors similarities */
 	
@@ -57,10 +58,11 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 
 	
 	
-	VectorsSimilaritiesWritable(String lexeme1, String lexeme2)
+	VectorsSimilaritiesWritable(String lexeme1, String lexeme2, boolean similar)
 	{
 		this.lexeme1 = lexeme1;
 		this.lexeme2 = lexeme2;		
+		this.similar = similar;
 	}
 	
 	
@@ -71,6 +73,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	{
 		this.lexeme1 = other.getLexeme1();
 		this.lexeme2 = other.getLexeme2();
+		this.similar = other.areSimilar();
 				
 		// Raw Frequency measure
 		this.rawFreq_ManhattanDis = other.getRawFrequency_ManhattanDis();
@@ -110,6 +113,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	{
 		lexeme1 = in.readUTF();
 		lexeme2 = in.readUTF();
+		similar = in.readBoolean();
 		
 		rawFreq_ManhattanDis = in.readDouble();
 		rawFreq_EuclideanDis = in.readDouble();
@@ -143,6 +147,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	public void write(DataOutput out) throws IOException {
 		out.writeUTF(lexeme1);
 		out.writeUTF(lexeme2);
+		out.writeBoolean(similar);
 		
 		out.writeDouble(rawFreq_ManhattanDis);
 		out.writeDouble(rawFreq_EuclideanDis);
@@ -176,6 +181,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 
 	public String getLexeme1() { return this.lexeme1; }
 	public String getLexeme2() { return this.lexeme2; }
+	public boolean areSimilar() { return this.similar; }
 	
 	// Raw Frequency measure
 	public double getRawFrequency_ManhattanDis() { return this.rawFreq_ManhattanDis; }
@@ -212,6 +218,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	
 	public void setLexeme1(String lexeme1) { this.lexeme1 = lexeme1; }
 	public void setLexeme2(String lexeme2) { this.lexeme2 = lexeme2; }
+	public void setSimilar(boolean similarity) { this.similar = similarity; }
 	
 	// Raw Frequency measure
 	public void setRawFrequency_ManhattanDis(double newValue) { this.rawFreq_ManhattanDis = newValue; }

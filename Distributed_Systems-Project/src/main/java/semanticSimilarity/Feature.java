@@ -15,7 +15,7 @@ public class Feature implements WritableComparable<Feature> {
 	protected int lexeme_total_independent_count;
 		
 	// Measures of association with context
-	protected MeasuresWritable measures = new MeasuresWritable(lexeme, feature);
+	protected MeasuresWritable measures = new MeasuresWritable();
 	
 	
 	
@@ -31,6 +31,8 @@ public class Feature implements WritableComparable<Feature> {
 		this.lexeme = lexeme;
 		this.feature_total_independent_count = total_count_of_feature;
 		this.lexeme_total_independent_count = total_count_of_lexeme;
+		measures.setLexeme(lexeme);
+		measures.setFeature(feature);
 	}
 	
 	
@@ -67,6 +69,7 @@ public class Feature implements WritableComparable<Feature> {
 		lexeme = in.readUTF();
 		feature_total_independent_count = in.readInt();
 		lexeme_total_independent_count = in.readInt();
+		measures = new MeasuresWritable();
 		measures.readFields(in);
 		
 	}

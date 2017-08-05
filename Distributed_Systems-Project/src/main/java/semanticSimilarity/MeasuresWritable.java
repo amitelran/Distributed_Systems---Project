@@ -50,7 +50,8 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 	}
 	
 	
-	public void readFields(DataInput in) throws IOException {
+	public void readFields(DataInput in) throws IOException 
+	{
 		lexeme = in.readUTF();
 		feature = in.readUTF();
 		raw_frequency = in.readInt();

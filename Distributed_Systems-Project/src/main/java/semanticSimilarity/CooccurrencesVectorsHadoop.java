@@ -200,23 +200,22 @@ public class CooccurrencesVectorsHadoop {
 		public void map(Text token, IntWritable total_count, Context context) throws IOException,  InterruptedException 
 		{
 			String key = token.toString();
-			PairWritable pair = new PairWritable();
+			PairWritable pair;
 			Text value = new Text();
 
 			// Case token is of form: "lexeme,word-dep_label" --> split to make lexeme the key, and add feature to the value
 			if (key.contains(",")) 
 			{
 				String[] split = key.split(",");
-				pair.setFirst(split[0]);								// create pair: <lexeme, "1">   ("1" value is not really important)
-				pair.setSecond("1");									// Second in pair is not important (we'll call it "1")
-				value.set(split[1] + "," + total_count.toString());  			// create: "feature, count" as value
+				pair = new PairWritable(split[0], "1");					// create pair: <lexeme, "1">   ("1" value is not really important)
+				value.set(split[1] + "," + total_count.toString());  	// create: "feature, count" as value
 			}
 
 			// Case token is lexeme only or feature only
-			else {
-				pair.setFirst(key); 											// create pair: <lexeme, '*'> or <feature, '*'>
-				pair.setSecond(asterixFlag);
-				value.set(total_count.toString());								// create value: total_count
+			else 
+			{
+				pair = new PairWritable(key, asterixFlag);				// create pair: <lexeme, '*'> or <feature, '*'>
+				value.set(total_count.toString());						// create value: total_count
 			}
 			context.write(pair, value);
 		}
@@ -232,7 +231,7 @@ public class CooccurrencesVectorsHadoop {
 	// Thus, making pair of the form <element, "*"> and <element, "1"> reach the same reducer
 
 
-	public class PairWritablePartitioner extends Partitioner<PairWritable, Text> {
+	public static class PairWritablePartitioner extends Partitioner<PairWritable, Text> {
 
 		@Override
 		public int getPartition(PairWritable keyPair, Text value, int numPartitions) 
@@ -708,7 +707,7 @@ public class CooccurrencesVectorsHadoop {
 			}
 			
 			// Ensure both the lexemes exist in corpus.
-			// (since we sent all pairs from gold standard, which some might not appear in our corpus)
+			// (since mapper sent all pairs from gold standard, which some might not appear in our corpus)
 			
 			if (leftExists && rightExists) 				
 			{

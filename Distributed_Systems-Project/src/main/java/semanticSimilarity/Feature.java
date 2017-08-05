@@ -15,14 +15,14 @@ public class Feature implements WritableComparable<Feature> {
 	protected int lexeme_total_independent_count;
 		
 	// Measures of association with context
-	protected MeasuresWritable measures = new MeasuresWritable();
+	protected MeasuresWritable measures;
 	
 	
 	
 	/*********** 	Constructors	 ***********/
 	
 	
-	Feature(){}
+	Feature(){ measures = new MeasuresWritable(); }
 	
 	
 	Feature(String feature, String lexeme, int total_count_of_feature, int total_count_of_lexeme) 
@@ -31,8 +31,7 @@ public class Feature implements WritableComparable<Feature> {
 		this.lexeme = lexeme;
 		this.feature_total_independent_count = total_count_of_feature;
 		this.lexeme_total_independent_count = total_count_of_lexeme;
-		measures.setLexeme(lexeme);
-		measures.setFeature(feature);
+		this.measures = new MeasuresWritable(lexeme, feature);
 	}
 	
 	
@@ -51,7 +50,7 @@ public class Feature implements WritableComparable<Feature> {
 
 	public void write(DataOutput out) throws IOException 
 	{
-		out.writeUTF(feature.toString());
+		out.writeUTF(feature);
 		out.writeUTF(lexeme);
 		out.writeInt(feature_total_independent_count);
 		out.writeInt(lexeme_total_independent_count);
@@ -89,9 +88,9 @@ public class Feature implements WritableComparable<Feature> {
 			return false;
 		}
 		String otherFeature = ((Feature) other).getFeature();
-		//String otherLexeme = ((Feature) other).getLexeme();
-		//return ((word.equals(otherWord)) && (dep_label.equals(otherDepLabel)));
-		return (feature.equals(otherFeature));
+		String otherLexeme = ((Feature) other).getLexeme();
+		
+		return ((this.feature.equals(otherFeature)) && (this.lexeme.equals(otherLexeme)));
 	}
 	
 	
@@ -108,14 +107,6 @@ public class Feature implements WritableComparable<Feature> {
         return result;
 	}
 	
-	/*
-	public static int getHashCode(String word, String dep_label) {
-		int result = 17;
-        result = 31 * result + word.hashCode();
-        result = 31 * result + dep_label.hashCode();
-        return result;
-	}
-	*/
 	
 	
 	/*********** 	Compute measures of association with context	 ***********/

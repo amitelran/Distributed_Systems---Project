@@ -297,9 +297,6 @@ public class CooccurrencesVectorsHadoop {
 				for (Text value : countsOrFeatures) 
 				{
 					String[] split = value.toString().split(",");			// split[0] = feature, split[1] = lexeme & feature count
-					if (split.length < 3) {
-						continue;
-					}
 					context.write(new PairWritable(split[0], "1"), new Text(lexeme + "," + split[1] + "," + totalLexemeCount));	// value: <lexeme, lexeme&feature count, lexeme's total count>
 				}
 			}	
@@ -364,7 +361,7 @@ public class CooccurrencesVectorsHadoop {
 		// input: 		key: 	<feature, '*'> 		   | <feature, '1'>, 	
 		//				value: 	Iterable<summed count> | Iterable<<lexeme, lexeme&feature count, lexeme's total count>>
 		
-		// output: 		key: 	feature, 							
+		// output: 		key: 	feature_name, 							
 		//				value:  Feature data structure containing all computed measures
 
 
@@ -390,7 +387,7 @@ public class CooccurrencesVectorsHadoop {
 					if (split.length < 3) {
 						continue;
 					}
-					Feature feature = new Feature(featureKey.getFirst().toString(), split[0], totalFeatureCount, Integer.parseInt(split[2]));
+					Feature feature = new Feature(featureKey.getFirst(), split[0], totalFeatureCount, Integer.parseInt(split[2]));
 					feature.computeAllMeasures(Integer.parseInt(split[1]), totalLexemesCorpus, totalFeaturesCorpus);
 					context.write(new Text(featureKey.getFirst()), feature);			// output: feature_name, featureData
 				}

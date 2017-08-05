@@ -1,14 +1,12 @@
 package semanticSimilarity;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.URI;
 import java.util.Random;
 
 import com.amazonaws.services.s3.AmazonS3;
@@ -26,23 +24,24 @@ public class Weka {
 	/***************	 Perform WEKA evaluation	  ***************/
 
 	
-	public static void evaluateWEKA(String path) throws Exception 
+	public static void evaluateWEKA(String path, String outputPath) throws Exception 
 	{
 		BufferedReader buffReader = null;
 		try 
 		{
 			buffReader = new BufferedReader(new FileReader(path));		// Read the vectors similarities file
 			Instances data = new Instances(buffReader);					// Read data into Instances object using the buffered reader
-			data.setClassIndex(data.numAttributes() - 1);				// This means we are setting the 'similar' attribute (since it's placed last in attributes)
+			data.setClassIndex(data.numAttributes() - 1);				// This means we are setting the 'similar' attribute (placed last in attributes)
 			
-			buffReader.close();
+			buffReader.close();			// Finished with buffered reader
 			
-			RandomForest randForest = new RandomForest();						// Set random forest classifier
-			Evaluation eval = new Evaluation(data);
-			eval.crossValidateModel(randForest, data, 10, new Random(1));		// Performs a 10 fold cross-validation for a classifier on a set of instances
+			RandomForest randForest = new RandomForest();						// Set Random-Forest classifier (classifier doesn't matter)
+			Evaluation eval = new Evaluation(data);								// We are setting  the data file to the Evaluation
+			eval.crossValidateModel(randForest, data, 10, new Random(1));		// <classifier, data file, , 10-fold cross-validation, random number generator for randomization>
 			
 			System.out.println(eval.toSummaryString(("\nWeka Results\n===========\n"), true));
 			System.out.println(eval.fMeasure(1) + " " + eval.precision(1) + " " + eval.recall(1));		// F1 measure, precision, recall stats
+			writeResultsToFile("C:\\Users\\Amir\\Desktop\\yoav_amit_weka_results.txt", eval);
 		}
 		
 		catch (FileNotFoundException e1) 
@@ -150,6 +149,35 @@ public class Weka {
 		
 		writer.println();
 		writer.println("@DATA");
+	}
+	
+	
+	
+	/***************	 Write WEKA results to output file	 ***************/
+
+	
+	public static void writeResultsToFile(String outputPath, Evaluation eval) 
+	{
+		try {
+		    PrintWriter writer = new PrintWriter(outputPath, "UTF-8");
+		    writer.println("Yoav Beeri & Amit Elran - Distributed Systems Programming Project");
+		    writer.println((eval.toSummaryString(("\nWeka Results\n========================\n"), true)));
+		    writer.println("F1 Measure: " + eval.fMeasure(1));
+		    writer.println("Precision: " + eval.precision(1));
+		    writer.println("Recall: " + eval.recall(1));
+		    writer.println();
+		    writer.println("True-Positive rate: " + eval.truePositiveRate(1));
+		    writer.println("False-Positive rate: " + eval.falsePositiveRate(1));
+		    writer.println("True-Negative rate: " + eval.trueNegativeRate(1));
+		    writer.println("False-Negative rate: " + eval.falseNegativeRate(1));
+
+		    writer.println("========================");
+		    writer.close();
+		} 
+		catch (IOException e) {
+		   System.err.println("Error occured while writing Weka results to output file\n");
+		}
+		return;
 	}
 
 }

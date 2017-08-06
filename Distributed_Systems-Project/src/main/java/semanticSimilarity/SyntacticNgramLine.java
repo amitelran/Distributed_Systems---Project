@@ -13,7 +13,6 @@ public class SyntacticNgramLine implements Writable {
     protected Text headWord;															// The word which is the syntactic tree's root
     protected SyntacticNgram[] ngrams;													// Array of all syntactic ngrams in given line
     protected int total_count;															// Total counts as summed in the years
-    //protected List<Pair<Integer, Integer>> counts_by_year = new LinkedList<Pair<Integer, Integer>>();				// Each element in the list is of form: <year, counts for year>
     
 
     public SyntacticNgramLine(){}
@@ -37,50 +36,32 @@ public class SyntacticNgramLine implements Writable {
         for (int i = 0; i < synNgramsSplit.length; i++) 
         {
         	String[] ngramSplits = synNgramsSplit[i].split("/");
-        	if (ngramSplits.length != 4) {							// Ignore cases in which ngram is not valid word
-        		continue;
-        	}
-        	SyntacticNgram synNgram = new SyntacticNgram(ngramSplits[0], ngramSplits[1], ngramSplits[2], ngramSplits[3]);
-        	ngrams[i] = synNgram;
+        	if ((ngramSplits.length == 4) && (ngramSplits[0] != null) && (ngramSplits[1] != null) && (ngramSplits[2] != null) && (ngramSplits[3] != null))
+        	{							
+        		SyntacticNgram synNgram = new SyntacticNgram(ngramSplits[0], ngramSplits[1], ngramSplits[2], ngramSplits[3]);
+            	ngrams[i] = synNgram;;
+        	}	
         }
-        
         total_count = Integer.parseInt(lineSplit[2]);
-        
-        /*
-        String[] countsByYearSplit = lineSplit[3].split("\\s+");
-        for (int i = 0; i < countsByYearSplit.length; i++) {
-        	String[] pairSplit = countsByYearSplit[i].split(",");
-        	Pair<Integer, Integer> countByYearPair = new Pair<Integer, Integer>(Integer.parseInt(pairSplit[0]), Integer.parseInt(pairSplit[1]));
-        	countByYearPair.printPair();
-        	counts_by_year.add(countByYearPair);
-        }
-		*/
     }
     
     
     /***************	 Copy Constructor	 ***************/    
     
     
-	public SyntacticNgramLine(SyntacticNgramLine other) {
+	public SyntacticNgramLine(SyntacticNgramLine other)
+	{
 		
         headWord = other.getheadWord();
         
         SyntacticNgram[] otherNgrams = other.copyNgrams();
         ngrams = new SyntacticNgram[otherNgrams.length];
-        for (int i = 0; i < otherNgrams.length; i++) {
-        	ngrams[i] = otherNgrams[i];
+        for (int i = 0; i < otherNgrams.length; i++) 
+        {
+        	ngrams[i] = new SyntacticNgram(otherNgrams[i]);
         }
         
         total_count = other.total_count;
-        
-        /* Deep copy Pairs list */
-        /*
-        List<Pair<Integer, Integer>> new_counts_by_year = new LinkedList<Pair<Integer, Integer>>();	
-        for (Pair<Integer, Integer> pair : other.counts_by_year) {
-        	new_counts_by_year.add(new Pair<Integer, Integer>(pair));
-        }
-        counts_by_year = new_counts_by_year;
-        */
     }
     
     
@@ -88,7 +69,8 @@ public class SyntacticNgramLine implements Writable {
     /***************	 Read & Write fields methods of Syntactic Ngram object	 ***************/
     
     
-    public void readFields(DataInput in) throws IOException {
+    public void readFields(DataInput in) throws IOException 
+    {
         headWord = new Text(in.readUTF());
         
         int ngramsSize = in.readInt();					// First, read 'pushed' size of ngrams array
@@ -101,17 +83,6 @@ public class SyntacticNgramLine implements Writable {
         }
         
         total_count = in.readInt();						
-        /*
-        int countsByYearSize = in.readInt();			// First, read 'pushed' size of total counts list
-        List<Pair<Integer, Integer>> countsByYearList = new LinkedList<Pair<Integer, Integer>>();
-        for (int i = 0; i < countsByYearSize; i++) {
-        	int year = in.readInt();
-        	int count = in.readInt();
-        	Pair<Integer, Integer> yearPair = new Pair<Integer, Integer>(year, count);
-        	countsByYearList.add(yearPair);
-        }
-        counts_by_year = countsByYearList;
-        */
     }
     
     
@@ -125,13 +96,6 @@ public class SyntacticNgramLine implements Writable {
         }
         
         out.writeInt(total_count);
-        /*
-        out.writeInt(counts_by_year.size()); 		// 'Push' the size of the linked list in order to know how many elements to read
-        for (Pair<Integer, Integer> yearPair : counts_by_year) {
-        	out.writeInt(yearPair.getFirst());
-        	out.writeInt(yearPair.getSecond());
-        }
-        */
     }
     
     
@@ -142,7 +106,6 @@ public class SyntacticNgramLine implements Writable {
     public Text getheadWord() { return headWord; }
     public SyntacticNgram[] getNgrams() { return ngrams; }
     public int getTotalCount() { return total_count; }
-    //public List<Pair<Integer, Integer>> getCountsByYear() { return counts_by_year; }
     
     
     

@@ -17,22 +17,12 @@ public class SyntacticNgram implements Writable {
     protected boolean writtenToContext;		// If lexeme --> boolean if already written to context
     
     
-    /***************	 Constructor - receives a Stringed ngram, and parses it to a syntactic ngram object	 ***************/
+    /***************	 Constructor - receives parsed ngram data, and constructs it to a syntactic ngram object	 ***************/
 
     
     public SyntacticNgram(){}
     
-    
-    public SyntacticNgram(String ngram) throws ParseException, IOException 
-    {
-        String[] ngramSplit = ngram.split("/");
-    	word = Stemmer.stemWord(ngramSplit[0].toLowerCase());
-    	pos_tag = ngramSplit[1].toLowerCase();
-    	dep_label = ngramSplit[2].toLowerCase();
-    	head_index = Integer.parseInt(ngramSplit[3]);
-    	writtenToContext = false;
-    }
-    
+   
     
     public SyntacticNgram(String word, String pos_tag, String dep_label, String head_index) throws ParseException, IOException 
     {
@@ -44,7 +34,9 @@ public class SyntacticNgram implements Writable {
     }
     
     
-    public SyntacticNgram(SyntacticNgram other) {
+    
+    public SyntacticNgram(SyntacticNgram other) 
+    {
     	word = other.getWord().toLowerCase();
     	pos_tag = other.getPosTag().toLowerCase();
     	dep_label = other.getDependancyLabel().toLowerCase();
@@ -109,9 +101,6 @@ public class SyntacticNgram implements Writable {
 
     
     @Override
-    public String toString(){
-    	return word + "/" + pos_tag + "/" + dep_label + "/" + head_index;
-    	//return "Word: " + word + ", Part of Speech Tag: " + pos_tag + ", Dependancy Label: " + dep_label + ", Head index: " + head_index;
-    }
+    public String toString() { return word + "/" + pos_tag + "/" + dep_label + "/" + head_index; }
 
 }

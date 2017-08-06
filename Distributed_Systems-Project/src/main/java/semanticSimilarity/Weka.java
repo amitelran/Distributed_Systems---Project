@@ -7,6 +7,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Random;
 
 import com.amazonaws.services.s3.AmazonS3;
@@ -27,17 +30,22 @@ public class Weka {
 	public static void evaluateWEKA(String path, String outputPath) throws Exception 
 	{
 		BufferedReader buffReader = null;
+		int folds = 10;
 		try 
 		{
 			buffReader = new BufferedReader(new FileReader(path));		// Read the vectors similarities file
-			Instances data = new Instances(buffReader);					// Read data into Instances object using the buffered reader
+			Instances data = new Instances(buffReader);					// Instances will be the data lines from the file
+			if (data.numInstances() < folds) 
+			{
+				folds = data.numInstances();							// Cannot have more folds than instances
+			}
 			data.setClassIndex(data.numAttributes() - 1);				// This means we are setting the 'similar' attribute (placed last in attributes)
 			
 			buffReader.close();			// Finished with buffered reader
 			
 			RandomForest randForest = new RandomForest();						// Set Random-Forest classifier (classifier doesn't matter)
 			Evaluation eval = new Evaluation(data);								// We are setting  the data file to the Evaluation
-			eval.crossValidateModel(randForest, data, 10, new Random(1));		// <classifier, data file, , 10-fold cross-validation, random number generator for randomization>
+			eval.crossValidateModel(randForest, data, folds, new Random(1));	// <classifier, data file, , 10-fold cross-validation, random number generator for randomization>
 			
 			System.out.println(eval.toSummaryString(("\nWeka Results\n===========\n"), true));
 			System.out.println(eval.fMeasure(1) + " " + eval.precision(1) + " " + eval.recall(1));		// F1 measure, precision, recall stats
@@ -76,19 +84,44 @@ public class Weka {
 	/***************	 Read S3 output file data, and append  to ARFF file	 ***************/
 
 	
-	public static void readFromS3file_to_ARFF_File(String path, AmazonS3 s3, String bucketName, String fileKey) 
+	public static List<PairWritable> readFromS3file_to_ARFF_File(String path, AmazonS3 s3, String bucketName, String fileKey) 
 	{
+		List<PairWritable> pairList = new LinkedList<PairWritable>();		// List to store lexemes pair for latter use
 		try {
 			PrintWriter writer = new PrintWriter(new FileWriter(path, true));			/* append = true */
 			try 
 			{
+				List<String> arffLines = new LinkedList<String>();					// Generate new lines withot string attributes
+				
 				S3Object s3object = s3.getObject(new GetObjectRequest(bucketName, fileKey));
 				BufferedReader reader = new BufferedReader(new InputStreamReader(s3object.getObjectContent()));
 				String line;
+				
+				
+				/* Read line by line from S3 file, but put aside the lexemes pair (strings), and use them after the classification */
+				
 				while((line = reader.readLine()) != null) 
 				{
-					writer.println(line);
+					String[] splitLine = line.split(",");								// Split line to get out the lexemes
+					pairList.add(new PairWritable(splitLine[0], splitLine[1])); 		// Store both lexemes from pair
+					
+					String newLine = "";
+					for (int i = 2; i < (splitLine.length - 1); i++)					// Accumulate all elements to a single line, seperated by commas
+					{
+						newLine += splitLine[i] + ",";
+					}
+					newLine += splitLine[splitLine.length - 1];		// Add last element without a comma
+					arffLines.add(newLine);
 				}
+				
+				/* Write lines without the lexemes string within them */
+				
+				ListIterator<String> listIter = arffLines.listIterator();
+				while (listIter.hasNext())
+				{
+					writer.println(listIter.next());
+				}
+
 			}
 			finally {
 			    writer.close();
@@ -97,7 +130,7 @@ public class Weka {
 		catch (IOException e) {
 		   System.err.println("Error occured in append_data_ARFF_File\n");
 		}
-		return;
+		return pairList;
 	}
 	
 	

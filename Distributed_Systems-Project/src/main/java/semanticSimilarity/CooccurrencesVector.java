@@ -13,7 +13,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 	
 	protected String lexeme;
-	protected Map<Feature, MeasuresWritable> featuresMap = new HashMap<Feature, MeasuresWritable>(); 	// Mapping of a hash code as the 'key', and Features as the 'value
+	protected Map<Feature, MeasuresWritable> featuresMap;; 	// Mapping of a hash code as the 'key', and Features as the 'value
 
 	// Lexeme's vector norm according to each measure of association with context
 	protected double normRawFrequency = 0;
@@ -26,10 +26,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	/*********** 	Constructors	 ***********/
 
 
-	public CooccurrencesVector(){}
+	public CooccurrencesVector(){ this.featuresMap = new HashMap<Feature, MeasuresWritable>(); }
 
 
-	public CooccurrencesVector(String lexeme) { this.lexeme = lexeme; }
+	public CooccurrencesVector(String lexeme) { 
+		this.lexeme = lexeme; 
+		this.featuresMap = new HashMap<Feature, MeasuresWritable>();
+	}
 	
 	
 	public CooccurrencesVector(CooccurrencesVector otherVector)
@@ -39,6 +42,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		this.normRelativeFrequency = otherVector.getNormRelativeFrequency();
 		this.normPMI = otherVector.getNormPMI();
 		this.normTtest = otherVector.getNormTtest();
+		this.featuresMap = new HashMap<Feature, MeasuresWritable>();
 		this.copyFeatures(otherVector);
 	}
 
@@ -57,7 +61,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
 		{
 			entry.getKey().write(out);
-		} 
+		}
 		
 		out.writeDouble(normRawFrequency);
 		out.writeDouble(normRelativeFrequency); 
@@ -166,7 +170,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public void setLexeme(String newLexeme) { this.lexeme = newLexeme; }
 	
 	
-	public void setLexemeNorms(float rawFreqNorm, float relFrequencyNorm, double pmiNorm, double TtestNorm) 
+	public void setLexemeNorms(double rawFreqNorm, double relFrequencyNorm, double pmiNorm, double TtestNorm) 
 	{ 
 		this.normRawFrequency = rawFreqNorm; 
 		this.normRelativeFrequency = relFrequencyNorm;
@@ -183,12 +187,12 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public void computeVectorNorms() 
 	{
 		int rawMeasure = 0;
-		float relativeMeasure = 0;
+		double relativeMeasure = 0;
 		double pmiMeasure = 0;
 		double tTestMeasure = 0;
 		
-		float rawFrequencyNorm = 0;
-		float relatvieFrequencyNorm = 0;
+		double rawFrequencyNorm = 0;
+		double relatvieFrequencyNorm = 0;
 		double pmiNorm = 0;
 		double tTestNorm = 0;
 		
@@ -221,7 +225,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	// denominator = "mechane" of fraction
 	
 	
-	public VectorsSimilaritiesWritable vectorsSim(CooccurrencesVector otherVector, boolean similar)
+	public VectorsSimilaritiesWritable vectorsSim(CooccurrencesVector otherVector, String similar)
 	{
 		MeasuresWritable thisMeasures = new MeasuresWritable();
 		MeasuresWritable otherMeasures = new MeasuresWritable();
@@ -262,6 +266,27 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		double tTest_JaccardSim_DiceSim_numerator = 0;
 		double tTest_JaccardSim_denominator = 0;
 		double tTest_DiceSim_denominator = 0;
+		
+		double normRawFreqMult = (this.normRawFrequency * otherVector.getNormRawFrequency());
+		if (Double.isInfinite(normRawFreqMult)) {
+			normRawFreqMult = Double.MAX_VALUE;
+		}
+		
+		double normRelFreqMult = (this.normRelativeFrequency * otherVector.getNormRelativeFrequency());
+		if (Double.isInfinite(normRelFreqMult)) {
+			normRelFreqMult = Double.MAX_VALUE;
+		}
+		
+		double normPmiMult = (this.normPMI * otherVector.getNormPMI());
+		if (Double.isInfinite(normPmiMult)) {
+			normPmiMult = Double.MAX_VALUE;
+		}
+
+		double normTtestMult = (this.normTtest * otherVector.getNormTtest());
+		if (Double.isInfinite(normTtestMult)) {
+			normTtestMult = Double.MAX_VALUE;
+		}
+
 		
 		
 		Map<Feature, MeasuresWritable> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
@@ -408,7 +433,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 		vectorsSimilarities.setRawFrequency_ManhattanDis(rawFreq_ManhattanDis);
 		vectorsSimilarities.setRawFrequency_EuclideanDis(Math.sqrt(rawFreq_EuclideanDis));
-		vectorsSimilarities.setRawFrequency_CosineSim(rawFreq_CosineSim_numerator / (this.normRawFrequency * otherVector.getNormRawFrequency()));
+		vectorsSimilarities.setRawFrequency_CosineSim(rawFreq_CosineSim_numerator / normRawFreqMult);
+		if (Double.isInfinite(rawFreq_JaccardSim_denominator)) {
+			rawFreq_JaccardSim_denominator = Double.MAX_VALUE;
+		}
+		if (Double.isInfinite(rawFreq_DiceSim_denominator)) {
+			rawFreq_DiceSim_denominator = Double.MAX_VALUE;
+		}
 		vectorsSimilarities.setRawFrequency_JaccardSim(rawFreq_JaccardSim_DiceSim_numerator / rawFreq_JaccardSim_denominator);
 		vectorsSimilarities.setRawFrequency_DiceSim((2 * rawFreq_JaccardSim_DiceSim_numerator) / rawFreq_DiceSim_denominator);				
 	
@@ -416,7 +447,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		
 		vectorsSimilarities.setRelativeFrequency_ManhattanDis(relFreq_ManhattanDis);
 		vectorsSimilarities.setRelativeFrequency_EuclideanDis(Math.sqrt(relFreq_EuclideanDis));
-		vectorsSimilarities.setRelativeFrequency_CosineSim(relFreq_CosineSim_numerator / (this.normRelativeFrequency * otherVector.getNormRelativeFrequency()));
+		vectorsSimilarities.setRelativeFrequency_CosineSim(relFreq_CosineSim_numerator / normRelFreqMult);
+		if (Double.isInfinite(relFreq_JaccardSim_denominator)) {
+			relFreq_JaccardSim_denominator = Double.MAX_VALUE;
+		}
+		if (Double.isInfinite(relFreq_DiceSim_denominator)) {
+			relFreq_DiceSim_denominator = Double.MAX_VALUE;
+		}
 		vectorsSimilarities.setRelativeFrequency_JaccardSim(relFreq_JaccardSim_DiceSim_numerator / relFreq_JaccardSim_denominator);
 		vectorsSimilarities.setRelativeFrequency_DiceSim((2 * relFreq_JaccardSim_DiceSim_numerator) / relFreq_DiceSim_denominator);			
 		
@@ -424,7 +461,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 		vectorsSimilarities.setPMI_ManhattanDis(pmi_ManhattanDis);
 		vectorsSimilarities.setPMI_EuclideanDis(Math.sqrt(pmi_EuclideanDis));
-		vectorsSimilarities.setPMI_CosineSim(pmi_CosineSim_numerator / (this.normPMI * otherVector.getNormPMI()));
+		vectorsSimilarities.setPMI_CosineSim(pmi_CosineSim_numerator / normPmiMult);
+		if (Double.isInfinite(pmi_JaccardSim_denominator)) {
+			pmi_JaccardSim_denominator = Double.MAX_VALUE;
+		}
+		if (Double.isInfinite(pmi_DiceSim_denominator)) {
+			pmi_DiceSim_denominator = Double.MAX_VALUE;
+		}
 		vectorsSimilarities.setPMI_JaccardSim(pmi_JaccardSim_DiceSim_numerator / pmi_JaccardSim_denominator);
 		vectorsSimilarities.setPMI_DiceSim((2 * pmi_JaccardSim_DiceSim_numerator) / pmi_DiceSim_denominator);	
 		
@@ -432,7 +475,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		
 		vectorsSimilarities.setTtest_ManhattanDis(tTest_ManhattanDis);
 		vectorsSimilarities.setTtest_EuclideanDis(Math.sqrt(tTest_EuclideanDis));
-		vectorsSimilarities.setTtest_CosineSim(tTest_CosineSim_numerator / (this.normTtest * otherVector.getNormTtest()));
+		vectorsSimilarities.setTtest_CosineSim(tTest_CosineSim_numerator / normTtestMult);
+		if (Double.isInfinite(tTest_JaccardSim_denominator)) {
+			tTest_JaccardSim_denominator = Double.MAX_VALUE;
+		}
+		if (Double.isInfinite(tTest_DiceSim_denominator)) {
+			tTest_DiceSim_denominator = Double.MAX_VALUE;
+		}
 		vectorsSimilarities.setTtest_JaccardSim(tTest_JaccardSim_DiceSim_numerator / tTest_JaccardSim_denominator);
 		vectorsSimilarities.setTtest_DiceSim((2 * tTest_JaccardSim_DiceSim_numerator) / tTest_DiceSim_denominator);	
 		
@@ -462,7 +511,17 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 	@Override
 	public String toString(){
-		return "";
+		String ret = "\nCo-occurrences Vector:\n";
+		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
+		{
+			ret += "\t" + entry.getKey().toString();
+		} 
+		ret += "\traw frequency norm: " + normRawFrequency + ",";
+		ret += "\trelative frequency norm: " + normRelativeFrequency + ",";
+		ret += "\tpmi norm: " + normPMI + ",";
+		ret += "\tt-test norm: " + normTtest + "\n";
+
+		return ret;
 	}
 
 	

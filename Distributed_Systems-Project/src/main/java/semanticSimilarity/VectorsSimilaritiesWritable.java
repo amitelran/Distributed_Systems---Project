@@ -13,7 +13,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 
 	protected String lexeme1;
 	protected String lexeme2;
-	protected boolean similar;
+	protected String similar;
 	
 	/* 4 measures of association with context * 5 similarity equations = 20 combinations of vectors similarities */
 	
@@ -58,7 +58,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 
 	
 	
-	VectorsSimilaritiesWritable(String lexeme1, String lexeme2, boolean similar)
+	VectorsSimilaritiesWritable(String lexeme1, String lexeme2, String similar)
 	{
 		this.lexeme1 = lexeme1;
 		this.lexeme2 = lexeme2;		
@@ -113,7 +113,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	{
 		lexeme1 = in.readUTF();
 		lexeme2 = in.readUTF();
-		similar = in.readBoolean();
+		similar = in.readUTF();
 		
 		rawFreq_ManhattanDis = in.readDouble();
 		rawFreq_EuclideanDis = in.readDouble();
@@ -147,7 +147,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	public void write(DataOutput out) throws IOException {
 		out.writeUTF(lexeme1);
 		out.writeUTF(lexeme2);
-		out.writeBoolean(similar);
+		out.writeUTF(similar);
 		
 		out.writeDouble(rawFreq_ManhattanDis);
 		out.writeDouble(rawFreq_EuclideanDis);
@@ -181,7 +181,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 
 	public String getLexeme1() { return this.lexeme1; }
 	public String getLexeme2() { return this.lexeme2; }
-	public boolean areSimilar() { return this.similar; }
+	public String areSimilar() { return this.similar; }
 	
 	// Raw Frequency measure
 	public double getRawFrequency_ManhattanDis() { return this.rawFreq_ManhattanDis; }
@@ -218,7 +218,7 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	
 	public void setLexeme1(String lexeme1) { this.lexeme1 = lexeme1; }
 	public void setLexeme2(String lexeme2) { this.lexeme2 = lexeme2; }
-	public void setSimilar(boolean similarity) { this.similar = similarity; }
+	public void setSimilar(String similarity) { this.similar = similarity; }
 	
 	// Raw Frequency measure
 	public void setRawFrequency_ManhattanDis(double newValue) { this.rawFreq_ManhattanDis = newValue; }
@@ -305,36 +305,32 @@ public class VectorsSimilaritiesWritable implements WritableComparable<VectorsSi
 	{	
 		String stringedSimilarities = "";
 		stringedSimilarities += this.lexeme1 + "," + this.lexeme2 + ",";
-		stringedSimilarities += String.valueOf(this.rawFreq_ManhattanDis) + "," + 
-								String.valueOf(this.rawFreq_EuclideanDis) + "," +
-								String.valueOf(this.rawFreq_CosineSim) + "," +
-								String.valueOf(this.rawFreq_JaccardSim) + "," +
-								String.valueOf(this.rawFreq_DiceSim) + "," +
+		stringedSimilarities += this.rawFreq_ManhattanDis + "," + 
+								this.rawFreq_EuclideanDis + "," +
+								this.rawFreq_CosineSim + "," +
+								this.rawFreq_JaccardSim + "," +
+								this.rawFreq_DiceSim + "," +
 								
-								String.valueOf(this.relativeFreq_ManhattanDis) + "," + 
-								String.valueOf(this.relativeFreq_EuclideanDis) + "," +
-								String.valueOf(this.relativeFreq_CosineSim) + "," +
-								String.valueOf(this.relativeFreq_JaccardSim) + "," +
-								String.valueOf(this.relativeFreq_DiceSim) + "," + 
+								this.relativeFreq_ManhattanDis + "," + 
+								this.relativeFreq_EuclideanDis + "," +
+								this.relativeFreq_CosineSim + "," +
+								this.relativeFreq_JaccardSim + "," +
+								this.relativeFreq_DiceSim + "," + 
 
-								String.valueOf(this.pmi_ManhattanDis) + "," + 
-								String.valueOf(this.pmi_EuclideanDis) + "," +
-								String.valueOf(this.pmi_CosineSim) + "," +
-								String.valueOf(this.pmi_JaccardSim) + "," +
-								String.valueOf(this.pmi_DiceSim) + "," + 
+								this.pmi_ManhattanDis + "," + 
+								this.pmi_EuclideanDis + "," +
+								this.pmi_CosineSim + "," +
+								this.pmi_JaccardSim + "," +
+								this.pmi_DiceSim + "," + 
 
-								String.valueOf(this.tTest_ManhattanDis) + "," + 
-								String.valueOf(this.tTest_EuclideanDis) + "," +
-								String.valueOf(this.tTest_CosineSim) + "," +
-								String.valueOf(this.tTest_JaccardSim) + "," +
-								String.valueOf(this.tTest_DiceSim) + ","; 
+								this.tTest_ManhattanDis + "," + 
+								this.tTest_EuclideanDis + "," +
+								this.tTest_CosineSim + "," +
+								this.tTest_JaccardSim + "," +
+								this.tTest_DiceSim + "," + 
 								
-		if (this.similar) {
-			stringedSimilarities += "true\n";
-		}
-		else {
-			stringedSimilarities += "false\n";
-		}
+								this.similar; 
+		
 		return stringedSimilarities;
 	}
 

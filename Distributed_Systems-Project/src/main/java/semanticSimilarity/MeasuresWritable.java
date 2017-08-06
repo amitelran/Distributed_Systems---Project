@@ -15,7 +15,7 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 	
 	// Measures of association with context
 	protected int raw_frequency = 0;				// Frequency of feature & lexeme appearances = count(F=f, L=l)
-	protected float relative_frequency = 0;
+	protected double relative_frequency = 0;
 	protected double pmi = 0;						// Pointwise Mutual Information
 	protected double t_test = 0;
 	
@@ -55,7 +55,7 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 		lexeme = in.readUTF();
 		feature = in.readUTF();
 		raw_frequency = in.readInt();
-		relative_frequency = in.readFloat();
+		relative_frequency = in.readDouble();
 		pmi = in.readDouble();
 		t_test = in.readDouble();
 
@@ -66,7 +66,7 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 		out.writeUTF(lexeme);
 		out.writeUTF(feature);
 		out.writeInt(raw_frequency);
-		out.writeFloat(relative_frequency);
+		out.writeDouble(relative_frequency);
 		out.writeDouble(pmi);
 		out.writeDouble(t_test);
 
@@ -79,7 +79,7 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 	public String getFeature() { return this.feature; }
 	public String getLexeme() { return this.lexeme; }
 	public int getRawFrequency() { return this.raw_frequency; }
-	public float getRelativeFrequency() { return this.relative_frequency; }
+	public double getRelativeFrequency() { return this.relative_frequency; }
 	public double getPMI() { return this.pmi; }
 	public double getTtest() { return this.t_test; }
 	
@@ -90,7 +90,7 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 	public void setFeature(String feature) { this.feature = feature; }
 	public void setLexeme(String lexeme) { this.lexeme = lexeme; }
 	public void setRawFrequency(int rawFreq) { this.raw_frequency = rawFreq; }
-	public void setRelativeFrequency(float relFreq) { this.relative_frequency = relFreq; }
+	public void setRelativeFrequency(double relFreq) { this.relative_frequency = relFreq; }
 	public void setPMI (double pmi) { this.pmi = pmi; }
 	public void setTtest(double tTest) { this.t_test = tTest; }
 	
@@ -142,5 +142,14 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
     	}
 		return (this.lexeme.compareTo(other.getLexeme()));
 	}
+	
+	
+	/*********** 	To String	 ***********/
+	
 
+	public String toString() {
+		return "<" + lexeme + "," + feature + "," + Integer.toString(raw_frequency) + "," + 
+				Double.toString(relative_frequency) + "," + Double.toString(pmi) + "," + 
+				Double.toString(t_test) + ">\n";
+	}
 }

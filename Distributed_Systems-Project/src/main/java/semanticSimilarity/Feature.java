@@ -112,29 +112,29 @@ public class Feature implements WritableComparable<Feature> {
 	/*********** 	Compute measures of association with context	 ***********/
 	
 	
-	public void computeAllMeasures(int featureAndLexemeFrequency, long totalLexemesInCorpus, long totalFeaturesInCorpus) 
+	public void computeAllMeasures(int featureAndLexemeFrequency, double totalLexemesInCorpus, double totalFeaturesInCorpus) 
 	{
 		this.measures.setRawFrequency(featureAndLexemeFrequency);
-		this.measures.setRelativeFrequency(featureAndLexemeFrequency / lexeme_total_independent_count);
+		this.measures.setRelativeFrequency((float)featureAndLexemeFrequency / lexeme_total_independent_count);
 		compute_PMI_and_Ttest(totalLexemesInCorpus, totalFeaturesInCorpus);
 	}
 	
 
 	
-	public void compute_PMI_and_Ttest(long totalLexemesInCorpus, long totalFeaturesInCorpus ) 
+	public void compute_PMI_and_Ttest(double totalLexemesInCorpus, double totalFeaturesInCorpus ) 
 	{
 		/* PMI */
 		
-		float probability_of_lexeme = (lexeme_total_independent_count / totalLexemesInCorpus);		// P(l) = count(L=l) / count(L)
-		float probability_of_feature = (feature_total_independent_count / totalFeaturesInCorpus);	// P(f) = count(F=f) / count(F)
-		float probablity_multiplication = probability_of_lexeme * probability_of_feature;			// P(l) * P(f)
-		float joined_prob_lexeme_feature = (this.measures.getRawFrequency() / totalLexemesInCorpus);			// P(l,f) = count(F=f, L=l) / count(L)
-		float div_joined_mult = (joined_prob_lexeme_feature / probablity_multiplication);			// P(l,f) / P(f)P(l)
+		double probability_of_lexeme = (lexeme_total_independent_count / totalLexemesInCorpus);		// P(l) = count(L=l) / count(L)
+		double probability_of_feature = (feature_total_independent_count / totalFeaturesInCorpus);	// P(f) = count(F=f) / count(F)
+		double probablity_multiplication = probability_of_lexeme * probability_of_feature;			// P(l) * P(f)
+		double joined_prob_lexeme_feature = (this.measures.getRawFrequency() / totalLexemesInCorpus);			// P(l,f) = count(F=f, L=l) / count(L)
+		double div_joined_mult = (joined_prob_lexeme_feature / probablity_multiplication);			// P(l,f) / P(f)P(l)
 		this.measures.setPMI(Math.log(div_joined_mult) / Math.log(2));								// log2[P(l,f) / P(f)P(l)]
 		
 		/* T-test */
 		
-		float numerator = joined_prob_lexeme_feature - probablity_multiplication;					// P(l,f) - P(l)P(f)
+		double numerator = joined_prob_lexeme_feature - probablity_multiplication;					// P(l,f) - P(l)P(f)
 		double rooted_denominator = Math.sqrt(probablity_multiplication); 							// sqrt(P(l)P(f))
 		this.measures.setTtest(numerator / rooted_denominator);										// [P(l,f) - P(l)P(f)] / [sqrt(P(l)P(f)]
 	}
@@ -177,10 +177,10 @@ public class Feature implements WritableComparable<Feature> {
 	
 	@Override
 	public String toString(){
-		return "Feature: " + feature.toString() + ", " + 
-				"Lexeme: " + lexeme + ", " + 
+		return "<" + lexeme + "," + feature + "> " + 
 				"Independent Count of feature: " + Integer.toString(feature_total_independent_count) + ", " + 
-				"Independent Count of lexeme: " + Integer.toString(lexeme_total_independent_count) + "\n";
+				"Independent Count of lexeme: " + Integer.toString(lexeme_total_independent_count) + ", Measures: " + 
+				measures.toString() + "\n";
 	}
 	
 	

@@ -191,15 +191,17 @@ public class SemanticSimilarityApp {
 			BufferedWriter out = new BufferedWriter(writer);
 			BufferedReader reader;
 			char[] cbuf = new char[1024];
+			
 			for(S3ObjectSummary elem : list.getObjectSummaries()) 
 			{
-				S3Object outputFileObj = S3.downloadFile(s3, elem.getBucketName(), elem.getKey()); 
-
-				reader = new BufferedReader(new InputStreamReader(outputFileObj.getObjectContent()));		// Read content of input file object
+				S3Object outputFileObj = S3.downloadFile(s3, elem.getBucketName(), elem.getKey());  		// Download output files
+				reader = new BufferedReader(new InputStreamReader(outputFileObj.getObjectContent()));		// Read contents of output file object
 
 				System.out.println("Appending \"" + elem.getKey().substring(7) + "\" to \"" + OUTPUTFILENAME + "\"");
+				
 				int numCharsRead = 0;
-				while ((numCharsRead = reader.read(cbuf)) >= 0) {
+				while ((numCharsRead = reader.read(cbuf)) >= 0) 
+				{
 					out.write(cbuf, 0, numCharsRead);
 					out.flush();
 				}
@@ -207,7 +209,11 @@ public class SemanticSimilarityApp {
 			}
 			out.close();
 
-			System.out.println("Job done successfully. see file \"" + OUTPUTFILENAME + "\"");
+			System.out.println("Job done successfully. See file \"" + OUTPUTFILENAME + "\"");
+			
+			
+			// *************	 Get stdout log 	*************
+
 			
 			S3Object stdoutLog = s3.getObject(BUCKET_NAME, "logs/" + clusterId + "/steps/" + stepId + "/stdout.gz");
 			

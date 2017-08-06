@@ -15,7 +15,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.GzipCodec;
-import org.apache.hadoop.mapreduce.Cluster;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
@@ -336,9 +335,9 @@ public class CooccurrencesVectorsHadoop {
 
 	public static class MeasuresOfAssocWithContextReducer extends Reducer<PairWritable, Text, Text, Feature> {
 
-		private int totalFeatureCount = 0;
-		private long totalLexemesCorpus = 0;
-		private long totalFeaturesCorpus = 0;
+		public int totalFeatureCount = 0;
+		public double totalLexemesCorpus = 0;
+		public double totalFeaturesCorpus = 0;
 
 
 		/*******************************************	Setup to get Global Counters values	 ***********************************************/
@@ -346,12 +345,9 @@ public class CooccurrencesVectorsHadoop {
 
 		@Override
 		public void setup(Context context) throws IOException, InterruptedException
-		{
-			Configuration conf = context.getConfiguration();
-			Cluster cluster = new Cluster(conf);
-			Job currentJob = cluster.getJob(context.getJobID());
-			totalLexemesCorpus = currentJob.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_LEXEMES).getValue();		// Get overall counter of all lexemes
-			totalFeaturesCorpus = currentJob.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_FEATURES).getValue();		// Get overall counter of all features
+		{	
+			totalLexemesCorpus = (double) context.getConfiguration().getLong("totalLexemesCorpus", 0);
+			totalFeaturesCorpus = (double) context.getConfiguration().getLong("totalFeaturesCorpus", 0);
 		}
 
 
@@ -365,6 +361,7 @@ public class CooccurrencesVectorsHadoop {
 		//				value:  Feature data structure containing all computed measures
 
 
+		
 		public void reduce(PairWritable featureKey, Iterable<Text> values, Context context) throws IOException, InterruptedException 
 		{
 			
@@ -448,8 +445,7 @@ public class CooccurrencesVectorsHadoop {
 
 		public void reduce(Text lexemeName, Iterable<Feature> features, Context context) throws IOException, InterruptedException 
 		{
-			CooccurrencesVector vector = new CooccurrencesVector();
-			vector.setLexeme(lexemeName.toString());						// Set vector's lexeme
+			CooccurrencesVector vector = new CooccurrencesVector(lexemeName.toString());
 			for (Feature feature : features) 								// Add the all of the lexemes features to the vector
 			{
 				vector.addFeature(feature);
@@ -460,77 +456,6 @@ public class CooccurrencesVectorsHadoop {
 	}
 	
 	
-	
-	/*******************************************************************************************************/
-	/******************************************** 	Reducer D - Hidden	 *******************************************/
-	/****************************	Don't pay attention, but don't erase just yet! ***************************/
-
-
-	/*
-	public static class createCoordinatesReducer extends Reducer<Text, Feature, PairCoordinateWritable, PairMeasuresWritable> 
-	{
-		
-		PairCoordinateWritable coordinatePair = new PairCoordinateWritable();
-		PairMeasuresWritable measuresPair = new PairMeasuresWritable();
-		MeasuresWritable null_measures = new MeasuresWritable();
-		Feature currFeature = new Feature();
-		Feature otherFeature = new Feature();
-		String feature_name;
-		
-	
-		/*******************************************	Reduce D	 ***********************************************/
-
-
-		// input: 		key: feature_name, 	value: Iterable<Features>
-		// output: 		key: <lexeme_i, lexeme_j, feature_name>, 	value: <Measures_i, Measures_j>
-		//					 <lexeme_i, "*", feature_name>,			value: <Measures_i, null>
-		//					 <"*", lexeme_j, feature_name>,			value: <null, Measures_j>
-
-	/*
-		public void reduce(Text featureName, Iterable<Feature> features, Context context) throws IOException, InterruptedException 
-		{
-			feature_name = featureName.toString();
-			List<Feature> featuresList = new LinkedList<Feature>();
-			for (Feature feature : features) 
-			{
-				featuresList.add(feature);
-			}
-			Feature[] featuresArray = featuresList.toArray(new Feature[featuresList.size()]);
-
-			for (int i = 0; i < featuresArray.length; i++)
-			{
-				currFeature = featuresArray[i];
-				
-				// Write to context: 	<lexeme_i, "*", feature_name>, 		<measures_i, null_measures>
-				coordinatePair.setPairCoordinateWritable(currFeature.getLexeme(), "*", feature_name);
-				measuresPair.setPairMeasuresWritable(currFeature.getMeasures(), null_measures);
-				context.write(coordinatePair, measuresPair);
-				
-				// Write to context: 	<"*", lexeme_i, feature_name>, 		<null_measures, measures_i>
-				coordinatePair.setPairCoordinateWritable("*", currFeature.getLexeme(), feature_name);
-				measuresPair.setPairMeasuresWritable(null_measures, currFeature.getMeasures());
-				context.write(coordinatePair, measuresPair);
-				
-				
-				// For every other corresponding lexeme coordinate:
-				// Write to context:	<lexeme_i, lexeme_j, feature_name>, 	<measures_i, measures_j>
-				
-				for (int j = i + 1; j < featuresArray.length; j++)
-				{
-					otherFeature = featuresArray[j];
-					coordinatePair.setPairCoordinateWritable(currFeature.getLexeme(), otherFeature.getLexeme(), feature_name);
-					measuresPair.setPairMeasuresWritable(currFeature.getMeasures(), otherFeature.getMeasures());
-					context.write(coordinatePair, measuresPair);
-				}
-			}
-		}
-	}
-	
-	
-	
-	
-	/********************************************************************************************************************************************/
-
 	
 	
 	/*******************************************************************************************************/
@@ -629,7 +554,8 @@ public class CooccurrencesVectorsHadoop {
 	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, Text> {
 		
 		
-		private Map<PairLexemeWritable, Boolean> goldStandardPairs = new HashMap<PairLexemeWritable, Boolean>();
+		public Map<String, String> goldStandardPairs = new HashMap<String, String>();
+
 
 		
 		/*********** 	Read gold standard dataset words before starting the mapper	 ***********/
@@ -642,7 +568,7 @@ public class CooccurrencesVectorsHadoop {
 				URI mappingFileUri = context.getCacheFiles()[0];
 
 				if (mappingFileUri != null) {
-					readGoldStandardFile("./word-relatedness");
+					mapGoldStandardFile("./word-relatedness");
 				} 
 				else {
 					System.out.println(">>>>>> NO MAPPING FILE");
@@ -657,30 +583,41 @@ public class CooccurrencesVectorsHadoop {
 		/*********** 	Read gold standard dataset file	 ***********/
 
 
-		private void readGoldStandardFile(String path) {
+		public void mapGoldStandardFile(String path) 
+		{
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 				String wordsPairsLine = null;
 				while((wordsPairsLine = bufferedReader.readLine()) != null) 
 				{
 					String[] splitWords = wordsPairsLine.split("\\t");
-					if (splitWords[2].equals("True")) 
-					{
-						PairLexemeWritable pairLexemes = new PairLexemeWritable(Stemmer.stemWord(splitWords[0]), Stemmer.stemWord(splitWords[1]));
-						pairLexemes.orderPairLexicograph();
-						goldStandardPairs.put(pairLexemes, true);
+					String key = orderPairLexicograph(Stemmer.stemWord(splitWords[0]), Stemmer.stemWord(splitWords[1]));
+					if (goldStandardPairs.containsKey(key)) {
+						continue;
 					}
-					else 
-					{
-						PairLexemeWritable pairLexemes = new PairLexemeWritable(Stemmer.stemWord(splitWords[0]), Stemmer.stemWord(splitWords[1]));
-						pairLexemes.orderPairLexicograph();
-						goldStandardPairs.put(pairLexemes, false);
+					else {
+						goldStandardPairs.put(key, splitWords[2]);
 					}
 				}
 				bufferedReader.close();
 			} 
 			catch(IOException ex) {
-				System.err.println("Exception while reading gold standard dataset file: " + ex.getMessage());
+				System.err.println("Exception while reading gold standard dataset file in mapGoldStandardFile: " + ex.getMessage());
+			}
+		}
+		
+		
+		/*********** 	Order two lexemes lexicographically	 ***********/
+		
+		
+		public String orderPairLexicograph(String word_i, String word_j) 
+		{
+			int compare = word_i.compareTo(word_j);		
+			if (compare > 0) {					// Positive if word_j precedes word_i lexicographically (word_j < word_i)
+				return (word_j + word_i);
+			}
+			else {								// Negative\Zero if word_i precedes\equals word_j lexicographically (word_i <= word_j)
+				return (word_i + word_j);
 			}
 		}
 
@@ -694,22 +631,22 @@ public class CooccurrencesVectorsHadoop {
 	
 		public void reduce(PairWritable lexemesPair, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
 		{
-			PairLexemeWritable lexPair = new PairLexemeWritable(lexemesPair.getFirst(), lexemesPair.getSecond());
-			boolean similarity = goldStandardPairs.get(lexPair);
+			String leftInPair = lexemesPair.getFirst();
+			String rightInPair = lexemesPair.getSecond();
+			String similarity = goldStandardPairs.get(leftInPair + rightInPair);		// Pair is already sorted lexicographically
 			boolean leftExists = false;
 			boolean rightExists = false;
 			CooccurrencesVector leftVector = new CooccurrencesVector();
 			CooccurrencesVector rightVector = new CooccurrencesVector();
-			Text similaritiesOutput = new Text();
 			
 			for (CooccurrencesVector vector : vectors)			// Get both vectors
 			{
-				if (vector.getLexeme().equals(lexemesPair.getFirst()))			// Set left vector
+				if (vector.getLexeme().equals(leftInPair))			// Set left vector
 				{
 					leftExists = true;
 					leftVector.copyVector(vector); 
 				}
-				else if (vector.getLexeme().equals(lexemesPair.getSecond()))	// Set right vector
+				else if (vector.getLexeme().equals(rightInPair))	// Set right vector
 				{
 					rightExists = true;
 					rightVector.copyVector(vector); 
@@ -722,8 +659,7 @@ public class CooccurrencesVectorsHadoop {
 			if (leftExists && rightExists) 				
 			{
 				VectorsSimilaritiesWritable vectorsSim = leftVector.vectorsSim(rightVector, similarity);	// Compute similarities and write to output
-				similaritiesOutput = vectorsSim.toText();
-				context.write(lexemesPair, similaritiesOutput);
+				context.write(lexemesPair, new Text(vectorsSim.toString()));
 			}
 		}
 	}
@@ -749,9 +685,7 @@ public class CooccurrencesVectorsHadoop {
 		
 		
 		Configuration conf = new Configuration();
-		//conf.setInt("numOfSimilarTweets", Integer.parseInt(args[3]));
-		//conf.set("numOfTweets","none");
-		
+
 		
 		/***********************************	Job 1 - MapReduce A	 *****************************************/
 
@@ -780,6 +714,11 @@ public class CooccurrencesVectorsHadoop {
 		if(!job1.waitForCompletion(true))
 			System.exit(1);
 		
+		
+		// Get global counters: counter for total appearances of lexemes in corpus, counter for total appearances of features in corpus
+		long totalLexemesCorpus = job1.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_LEXEMES).getValue();		// Get overall counter of all lexemes
+		long totalFeaturesCorpus = job1.getCounters().findCounter(GLOBAL_COUNTERS.NUM_OF_FEATURES).getValue();		// Get overall counter of all
+
 		
 		/***********************************	Job 2 - MapReduce B	 *****************************************/
 		
@@ -819,6 +758,9 @@ public class CooccurrencesVectorsHadoop {
 		job3.setPartitionerClass(PairWritablePartitioner.class);
 		job3.setReducerClass(MeasuresOfAssocWithContextReducer.class);
 		
+		job3.getConfiguration().setLong("totalLexemesCorpus", totalLexemesCorpus);				// Set global counters data for MapReduce C
+		job3.getConfiguration().setLong("totalFeaturesCorpus", totalFeaturesCorpus);			// Set global counters data for MapReduce C
+		
 		job3.setMapOutputKeyClass(PairWritable.class);
 		job3.setMapOutputValueClass(Text.class);
 		job3.setOutputKeyClass(Text.class);
@@ -830,6 +772,9 @@ public class CooccurrencesVectorsHadoop {
 		SequenceFileOutputFormat.setOutputCompressionType(job3, CompressionType.BLOCK);
 		SequenceFileOutputFormat.setOutputPath(job3, new Path(args[1]+".intermediate3"));
 		SequenceFileOutputFormat.setOutputCompressorClass(job3, GzipCodec.class);
+		
+		//FileOutputFormat.setOutputPath(job3, new Path(args[1]+".intermediate3"));
+
 
 		if(!job3.waitForCompletion(true))
 			System.exit(1);
@@ -855,7 +800,7 @@ public class CooccurrencesVectorsHadoop {
 		SequenceFileOutputFormat.setOutputCompressionType(job4, CompressionType.BLOCK);
 		SequenceFileOutputFormat.setOutputPath(job4, new Path(args[1]+".intermediate4"));
 		SequenceFileOutputFormat.setOutputCompressorClass(job4, GzipCodec.class);
-		
+
 		if(!job4.waitForCompletion(true))
 			System.exit(1);
 		
@@ -887,8 +832,8 @@ public class CooccurrencesVectorsHadoop {
 		/***********************************	Print MapReduce jobs stats	 *****************************************/
 		
 		
-		Job[] jobs = { job1, job2, job3, job4, job5 };
-		for (int i = 0; i < 5; i++) 
+		Job[] jobs = { job1, job2, job3, job4, job5};
+		for (int i = 0; i < jobs.length; i++) 
 		{
 			System.out.println("Phase " + (i+1) + " Key-Value Pairs:");
 			System.out.println("\tPairs sent from Mapper: " + jobs[i].getCounters().findCounter(TaskCounter.MAP_OUTPUT_RECORDS).getValue());
@@ -897,8 +842,6 @@ public class CooccurrencesVectorsHadoop {
 	
 	}
 }
-
-
 
 
 

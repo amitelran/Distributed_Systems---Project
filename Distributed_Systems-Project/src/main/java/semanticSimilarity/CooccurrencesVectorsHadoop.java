@@ -463,7 +463,7 @@ public class CooccurrencesVectorsHadoop {
 
 
 	
-	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, PairWritable, CooccurrencesVector> {
+	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, Text, CooccurrencesVector> {
 				
 		private Set<String> goldStandardWords = new HashSet<String>();		
 		
@@ -535,9 +535,22 @@ public class CooccurrencesVectorsHadoop {
 				if (otherLexeme.equals(lexeme)) {				// Don't send same lexeme pairs
 					continue;
 				}
-				PairWritable lexemesPair = new PairWritable(lexeme, otherLexeme);
-				lexemesPair.orderPairLexicograph(); 			// Make sure pair is sorted the same way for the two cases of lexemes order in pair (ensure we send the same key to the reducer)
-				context.write(lexemesPair, vector);
+				context.write(new Text(orderPairLexicograph(lexeme, otherLexeme)), vector);		// Sort pair lexicographically to ensure same key
+			}
+		}
+		
+		
+		/*******************************************	Order words lexicographically	 ***********************************************/
+		
+		
+		public String orderPairLexicograph(String word1, String word2) 
+		{
+			int compare = word1.compareTo(word2);
+			if (compare > 0) {					// If positive: word2 < word1 lexicographically
+				return (word2 + "," + word1);
+			}
+			else {								// word1 > word2
+				return (word1 + "," + word2);
 			}
 		}
 	}
@@ -551,7 +564,7 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	
-	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, PairWritable, Text> {
+	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, Text, Text> {
 		
 		
 		public Map<String, String> goldStandardPairs = new HashMap<String, String>();
@@ -591,13 +604,8 @@ public class CooccurrencesVectorsHadoop {
 				while((wordsPairsLine = bufferedReader.readLine()) != null) 
 				{
 					String[] splitWords = wordsPairsLine.split("\\t");
-					String key = orderPairLexicograph(Stemmer.stemWord(splitWords[0]), Stemmer.stemWord(splitWords[1]));
-					if (goldStandardPairs.containsKey(key)) {
-						continue;
-					}
-					else {
-						goldStandardPairs.put(key, splitWords[2]);
-					}
+					String key = (Stemmer.stemWord(splitWords[0]) + Stemmer.stemWord(splitWords[1]));
+					goldStandardPairs.put(key, splitWords[2]);
 				}
 				bufferedReader.close();
 			} 
@@ -606,20 +614,6 @@ public class CooccurrencesVectorsHadoop {
 			}
 		}
 		
-		
-		/*********** 	Order two lexemes lexicographically	 ***********/
-		
-		
-		public String orderPairLexicograph(String word_i, String word_j) 
-		{
-			int compare = word_i.compareTo(word_j);		
-			if (compare > 0) {					// Positive if word_j precedes word_i lexicographically (word_j < word_i)
-				return (word_j + word_i);
-			}
-			else {								// Negative\Zero if word_i precedes\equals word_j lexicographically (word_i <= word_j)
-				return (word_i + word_j);
-			}
-		}
 
 		
 		/*********** 	Reduce E	 ***********/
@@ -629,11 +623,13 @@ public class CooccurrencesVectorsHadoop {
 		// output: 		key: 	<lexeme_i, lexeme_j> 	value: Vectors similarities as text
 
 	
-		public void reduce(PairWritable lexemesPair, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
+		public void reduce(Text lexemesPair, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
 		{
-			String leftInPair = lexemesPair.getFirst();
-			String rightInPair = lexemesPair.getSecond();
-			String similarity = goldStandardPairs.get(leftInPair + rightInPair);		// Pair is already sorted lexicographically
+			String key = lexemesPair.toString();
+			String[] splitKey = key.split(",");
+			String leftInPair = splitKey[0];
+			String rightInPair = splitKey[1];
+			String similarity = goldStandardPairs.get(key);		// Pair is already sorted lexicographically
 			boolean leftExists = false;
 			boolean rightExists = false;
 			CooccurrencesVector leftVector = new CooccurrencesVector();
@@ -644,12 +640,12 @@ public class CooccurrencesVectorsHadoop {
 				if (vector.getLexeme().equals(leftInPair))			// Set left vector
 				{
 					leftExists = true;
-					leftVector.copyVector(vector); 
+					leftVector = new CooccurrencesVector(vector); 
 				}
 				else if (vector.getLexeme().equals(rightInPair))	// Set right vector
 				{
 					rightExists = true;
-					rightVector.copyVector(vector); 
+					rightVector = new CooccurrencesVector(vector); 
 				}
 			}
 			
@@ -658,8 +654,8 @@ public class CooccurrencesVectorsHadoop {
 			
 			if (leftExists && rightExists) 				
 			{
-				VectorsSimilaritiesWritable vectorsSim = leftVector.vectorsSim(rightVector, similarity);	// Compute similarities and write to output
-				context.write(lexemesPair, new Text(vectorsSim.toString()));
+				VectorsSimilaritiesWritable vectorSim = leftVector.vectorsSim(rightVector, similarity);	// Compute similarities and write to output
+				context.write(lexemesPair, new Text(vectorSim.toString()));
 			}
 		}
 	}
@@ -814,10 +810,10 @@ public class CooccurrencesVectorsHadoop {
 		job5.setMapperClass(VectorsSimMapper.class);
 		job5.setReducerClass(VectorsSimReducer.class);
 		
-		job5.setMapOutputKeyClass(PairWritable.class);
+		job5.setMapOutputKeyClass(Text.class);
 		job5.setMapOutputValueClass(CooccurrencesVector.class);
-		job5.setOutputKeyClass(PairWritable.class);
-		job5.setOutputValueClass(VectorsSimilaritiesWritable.class);
+		job5.setOutputKeyClass(Text.class);
+		job5.setOutputValueClass(Text.class);
 		
 		job5.setInputFormatClass(SequenceFileInputFormat.class);
 		SequenceFileInputFormat.addInputPath(job5, new Path(args[1]+".intermediate4"));

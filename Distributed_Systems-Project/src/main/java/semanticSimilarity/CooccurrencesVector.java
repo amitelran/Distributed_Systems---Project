@@ -268,24 +268,9 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		double tTest_DiceSim_denominator = 0;
 		
 		double normRawFreqMult = (this.normRawFrequency * otherVector.getNormRawFrequency());
-		if (Double.isInfinite(normRawFreqMult)) {
-			normRawFreqMult = Double.MAX_VALUE;
-		}
-		
 		double normRelFreqMult = (this.normRelativeFrequency * otherVector.getNormRelativeFrequency());
-		if (Double.isInfinite(normRelFreqMult)) {
-			normRelFreqMult = Double.MAX_VALUE;
-		}
-		
 		double normPmiMult = (this.normPMI * otherVector.getNormPMI());
-		if (Double.isInfinite(normPmiMult)) {
-			normPmiMult = Double.MAX_VALUE;
-		}
-
 		double normTtestMult = (this.normTtest * otherVector.getNormTtest());
-		if (Double.isInfinite(normTtestMult)) {
-			normTtestMult = Double.MAX_VALUE;
-		}
 
 		
 		
@@ -434,12 +419,6 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setRawFrequency_ManhattanDis(rawFreq_ManhattanDis);
 		vectorsSimilarities.setRawFrequency_EuclideanDis(Math.sqrt(rawFreq_EuclideanDis));
 		vectorsSimilarities.setRawFrequency_CosineSim(rawFreq_CosineSim_numerator / normRawFreqMult);
-		if (Double.isInfinite(rawFreq_JaccardSim_denominator)) {
-			rawFreq_JaccardSim_denominator = Double.MAX_VALUE;
-		}
-		if (Double.isInfinite(rawFreq_DiceSim_denominator)) {
-			rawFreq_DiceSim_denominator = Double.MAX_VALUE;
-		}
 		vectorsSimilarities.setRawFrequency_JaccardSim(rawFreq_JaccardSim_DiceSim_numerator / rawFreq_JaccardSim_denominator);
 		vectorsSimilarities.setRawFrequency_DiceSim((2 * rawFreq_JaccardSim_DiceSim_numerator) / rawFreq_DiceSim_denominator);				
 	
@@ -448,12 +427,6 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setRelativeFrequency_ManhattanDis(relFreq_ManhattanDis);
 		vectorsSimilarities.setRelativeFrequency_EuclideanDis(Math.sqrt(relFreq_EuclideanDis));
 		vectorsSimilarities.setRelativeFrequency_CosineSim(relFreq_CosineSim_numerator / normRelFreqMult);
-		if (Double.isInfinite(relFreq_JaccardSim_denominator)) {
-			relFreq_JaccardSim_denominator = Double.MAX_VALUE;
-		}
-		if (Double.isInfinite(relFreq_DiceSim_denominator)) {
-			relFreq_DiceSim_denominator = Double.MAX_VALUE;
-		}
 		vectorsSimilarities.setRelativeFrequency_JaccardSim(relFreq_JaccardSim_DiceSim_numerator / relFreq_JaccardSim_denominator);
 		vectorsSimilarities.setRelativeFrequency_DiceSim((2 * relFreq_JaccardSim_DiceSim_numerator) / relFreq_DiceSim_denominator);			
 		
@@ -462,12 +435,6 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setPMI_ManhattanDis(pmi_ManhattanDis);
 		vectorsSimilarities.setPMI_EuclideanDis(Math.sqrt(pmi_EuclideanDis));
 		vectorsSimilarities.setPMI_CosineSim(pmi_CosineSim_numerator / normPmiMult);
-		if (Double.isInfinite(pmi_JaccardSim_denominator)) {
-			pmi_JaccardSim_denominator = Double.MAX_VALUE;
-		}
-		if (Double.isInfinite(pmi_DiceSim_denominator)) {
-			pmi_DiceSim_denominator = Double.MAX_VALUE;
-		}
 		vectorsSimilarities.setPMI_JaccardSim(pmi_JaccardSim_DiceSim_numerator / pmi_JaccardSim_denominator);
 		vectorsSimilarities.setPMI_DiceSim((2 * pmi_JaccardSim_DiceSim_numerator) / pmi_DiceSim_denominator);	
 		
@@ -476,12 +443,6 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		vectorsSimilarities.setTtest_ManhattanDis(tTest_ManhattanDis);
 		vectorsSimilarities.setTtest_EuclideanDis(Math.sqrt(tTest_EuclideanDis));
 		vectorsSimilarities.setTtest_CosineSim(tTest_CosineSim_numerator / normTtestMult);
-		if (Double.isInfinite(tTest_JaccardSim_denominator)) {
-			tTest_JaccardSim_denominator = Double.MAX_VALUE;
-		}
-		if (Double.isInfinite(tTest_DiceSim_denominator)) {
-			tTest_DiceSim_denominator = Double.MAX_VALUE;
-		}
 		vectorsSimilarities.setTtest_JaccardSim(tTest_JaccardSim_DiceSim_numerator / tTest_JaccardSim_denominator);
 		vectorsSimilarities.setTtest_DiceSim((2 * tTest_JaccardSim_DiceSim_numerator) / tTest_DiceSim_denominator);	
 		
@@ -519,7 +480,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		ret += "\traw frequency norm: " + normRawFrequency + ",";
 		ret += "\trelative frequency norm: " + normRelativeFrequency + ",";
 		ret += "\tpmi norm: " + normPMI + ",";
-		ret += "\tt-test norm: " + normTtest + "\n";
+		ret += "\tt-test norm: " + normTtest;
 
 		return ret;
 	}

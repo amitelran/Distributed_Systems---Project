@@ -13,7 +13,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 	
 	protected String lexeme;
-	protected Map<Feature, MeasuresWritable> featuresMap;; 	// Mapping of a hash code as the 'key', and Features as the 'value
+	protected Map<String, Feature> featuresMap; 	// Mapping of a hash code as the 'key', and Features as the 'value
 
 	// Lexeme's vector norm according to each measure of association with context
 	protected double normRawFrequency = 0;
@@ -26,12 +26,12 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	/*********** 	Constructors	 ***********/
 
 
-	public CooccurrencesVector(){ this.featuresMap = new HashMap<Feature, MeasuresWritable>(); }
+	public CooccurrencesVector(){ this.featuresMap = new HashMap<String, Feature>(); }
 
 
 	public CooccurrencesVector(String lexeme) { 
 		this.lexeme = lexeme; 
-		this.featuresMap = new HashMap<Feature, MeasuresWritable>();
+		this.featuresMap = new HashMap<String, Feature>();
 	}
 	
 	
@@ -42,7 +42,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		this.normRelativeFrequency = otherVector.getNormRelativeFrequency();
 		this.normPMI = otherVector.getNormPMI();
 		this.normTtest = otherVector.getNormTtest();
-		this.featuresMap = new HashMap<Feature, MeasuresWritable>();
+		this.featuresMap = new HashMap<String, Feature>();
 		this.copyFeatures(otherVector);
 	}
 
@@ -58,9 +58,9 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		int mapSize = featuresMap.size();
 		out.writeInt(mapSize);			// 'Push' size of map
 
-		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
+		for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) 
 		{
-			entry.getKey().write(out);
+			entry.getValue().write(out);
 		}
 		
 		out.writeDouble(normRawFrequency);
@@ -79,13 +79,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	{
 		lexeme = in.readUTF();
 		int mapSize = in.readInt();				// Read 'pushed' size of map
-		Map<Feature, MeasuresWritable> readMap = new HashMap<Feature, MeasuresWritable>();
+		Map<String, Feature> readMap = new HashMap<String, Feature>();
 		
 		for (int i = 0; i < mapSize; i++)
 		{
 			Feature feature = new Feature();
 			feature.readFields(in);
-			readMap.put(feature, feature.getMeasures());
+			readMap.put(feature.getFeature(), feature);
 		}
 		this.featuresMap = readMap;
 		
@@ -104,8 +104,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public void addFeature(Feature inputFeature) 
 	{
 		Feature feature = new Feature(inputFeature);
-		MeasuresWritable featureMeasures = new MeasuresWritable(inputFeature.getMeasures());
-		this.featuresMap.put(feature, featureMeasures);
+		this.featuresMap.put(feature.getFeature(), feature);
 	}
 	 
 	
@@ -134,13 +133,13 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	public void copyFeatures(CooccurrencesVector otherVector) 
 	{
 		
-		Map<Feature, MeasuresWritable> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
+		Map<String, Feature> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
 
 		/*	Iterate through map to copy features from the other's map to our map	*/
 
-		for (Map.Entry<Feature, MeasuresWritable> entry : otherMap.entrySet()) 
+		for (Map.Entry<String, Feature> entry : otherMap.entrySet()) 
 		{
-			this.addFeature(entry.getKey());
+			this.addFeature(entry.getValue());
 		}
 	}
 
@@ -150,17 +149,14 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 
 
 	public String getLexeme() { return this.lexeme; }
-	public Map<Feature, MeasuresWritable> getFeaturesMap() { return this.featuresMap; }
+	public Map<String, Feature> getFeaturesMap() { return this.featuresMap; }
 	
 	public double getNormRawFrequency() { return this.normRawFrequency; }
 	public double getNormRelativeFrequency() { return this.normRelativeFrequency; }
 	public double getNormPMI() { return this.normPMI; }
 	public double getNormTtest() { return this.normTtest; }
 	
-	public MeasuresWritable getCoordinate(Feature feature) 
-	{
-		return this.featuresMap.get(feature);
-	}
+	public Feature getCoordinate(Feature feature) { return this.featuresMap.get(feature.getFeature()); }
 	
 	
 	
@@ -196,9 +192,10 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		double pmiNorm = 0;
 		double tTestNorm = 0;
 		
-		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
+		for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) 
 		{
-			MeasuresWritable measures = entry.getValue();
+			MeasuresWritable measures = entry.getValue().getMeasures();
+			
 			rawMeasure = measures.getRawFrequency();
 			relativeMeasure = measures.getRelativeFrequency();
 			pmiMeasure = measures.getPMI();
@@ -230,6 +227,7 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		MeasuresWritable thisMeasures = new MeasuresWritable();
 		MeasuresWritable otherMeasures = new MeasuresWritable();
 		VectorsSimilaritiesWritable vectorsSimilarities = new VectorsSimilaritiesWritable(this.lexeme, otherVector.getLexeme(), similar);
+		
 		double thisRawFreq;
 		double thisRelFreq;
 		double thisPMI;
@@ -273,24 +271,23 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		double normTtestMult = (this.normTtest * otherVector.getNormTtest());
 
 		
-		
-		Map<Feature, MeasuresWritable> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
+		Map<String, Feature> otherMap = otherVector.getFeaturesMap();			// Get other co-occurrences vector's map
 		
 		/*	Iterate through all features of this vector and compare with other vector's features	*/
 		
-		for (Map.Entry<Feature, MeasuresWritable> currEntry : featuresMap.entrySet()) 
+		for (Map.Entry<String, Feature> thisEntry : featuresMap.entrySet()) 
 		{
-			thisMeasures = currEntry.getValue();
+			thisMeasures = thisEntry.getValue().getMeasures();
 			
 			thisRawFreq = thisMeasures.getRawFrequency();
 			thisRelFreq = thisMeasures.getRelativeFrequency();
 			thisPMI = thisMeasures.getPMI();
 			thisTtest = thisMeasures.getTtest();
 			
-			otherMeasures = otherMap.get(currEntry.getKey());
-			
-			if (otherMeasures != null) 							// Feature exists in both maps!
-			{								
+			if (otherMap.containsKey(thisEntry.getKey())) 		// Feature exists in both maps!
+			{
+				otherMeasures = otherMap.get(thisEntry.getKey()).getMeasures();		// Get corresponding measures from other vector
+								
 				otherRawFreq = otherMeasures.getRawFrequency();
 				otherRelFreq = otherMeasures.getRelativeFrequency();
 				otherPMI = otherMeasures.getPMI();
@@ -365,20 +362,19 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 		}
 		
 		
-		/*	Iterate through all features of 'other' vector, and pay attention only to such that don't exist in 'this' vector	*/
 		
-		for (Map.Entry<Feature, MeasuresWritable> otherEntry : otherMap.entrySet()) 
+		/*	Now, iterate through all features of 'other' vector, and pay attention only to such that don't exist in 'this' vector	*/
+		
+		for (Map.Entry<String, Feature> otherEntry : otherMap.entrySet()) 
 		{
-			otherMeasures = otherEntry.getValue();	
+			otherMeasures = otherEntry.getValue().getMeasures();		// Get measures from the other vector feature
 			
 			otherRawFreq = otherMeasures.getRawFrequency();
 			otherRelFreq = otherMeasures.getRelativeFrequency();
 			otherPMI = otherMeasures.getPMI();
 			otherTtest = otherMeasures.getTtest();
 			
-			thisMeasures = featuresMap.get(otherEntry.getValue());
-			
-			if (thisMeasures != null)					// Feature exists in both vectors -> already computed in previous loop, ignore
+			if (this.featuresMap.containsKey(otherEntry.getKey()))		// Feature exists in both vectors -> already computed in previous loop, ignore
 			{
 				continue;
 			}
@@ -473,9 +469,9 @@ public class CooccurrencesVector implements WritableComparable<CooccurrencesVect
 	@Override
 	public String toString(){
 		String ret = "\nCo-occurrences Vector:\n";
-		for (Map.Entry<Feature, MeasuresWritable> entry : featuresMap.entrySet()) 
+		for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) 
 		{
-			ret += "\t" + entry.getKey().toString();
+			ret += "\t" + entry.getValue().toString();
 		} 
 		ret += "\traw frequency norm: " + normRawFrequency + ",";
 		ret += "\trelative frequency norm: " + normRelativeFrequency + ",";

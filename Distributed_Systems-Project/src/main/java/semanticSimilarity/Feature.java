@@ -180,7 +180,7 @@ public class Feature implements WritableComparable<Feature> {
 		return "<" + lexeme + "," + feature + "> " + 
 				"Independent Count of feature: " + Integer.toString(feature_total_independent_count) + ", " + 
 				"Independent Count of lexeme: " + Integer.toString(lexeme_total_independent_count) + ", Measures: " + 
-				measures.toString() + "\n";
+				measures.toString();
 	}
 	
 	

@@ -147,8 +147,8 @@ public class Weka {
 		writer.println("@RELATION biarcs");
 		writer.println();
 
-		writer.println("@ATTRIBUTE word1	STRING");
-		writer.println("@ATTRIBUTE word2	STRING");
+		//writer.println("@ATTRIBUTE word1	STRING");
+		//writer.println("@ATTRIBUTE word2	STRING");
 		
 		/* Raw Frequency Measures */
 		writer.println("@ATTRIBUTE raw_freq_manhattan	NUMERIC");
@@ -186,10 +186,11 @@ public class Weka {
 	
 	
 	
-	/***************	 Write WEKA results to output file	 ***************/
+	/***************	 Write WEKA results to output file	 
+	 * @throws Exception ***************/
 
 	
-	public static void writeResultsToFile(String outputPath, Evaluation eval) 
+	public static void writeResultsToFile(String outputPath, Evaluation eval) throws Exception 
 	{
 		try {
 		    PrintWriter writer = new PrintWriter(outputPath, "UTF-8");
@@ -203,7 +204,8 @@ public class Weka {
 		    writer.println("False-Positive rate: " + eval.falsePositiveRate(1));
 		    writer.println("True-Negative rate: " + eval.trueNegativeRate(1));
 		    writer.println("False-Negative rate: " + eval.falseNegativeRate(1));
-
+		    writer.println();
+		    writer.println(eval.toMatrixString());
 		    writer.println("========================");
 		    writer.close();
 		} 

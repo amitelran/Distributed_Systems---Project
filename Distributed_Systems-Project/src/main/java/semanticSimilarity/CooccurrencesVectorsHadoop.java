@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -465,6 +466,7 @@ public class CooccurrencesVectorsHadoop {
 	
 	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, Text, CooccurrencesVector> {
 				
+		
 		private Set<String> goldStandardWords = new HashSet<String>();		
 		
 
@@ -564,10 +566,10 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	
-	public static class VectorsSimReducer extends Reducer<PairWritable, CooccurrencesVector, Text, Text> {
+	public static class VectorsSimReducer extends Reducer<Text, CooccurrencesVector, Text, Text> {
 		
 		
-		public Map<String, String> goldStandardPairs = new HashMap<String, String>();
+		private Map<String, String> goldStandardPairs = new HashMap<String, String>();
 
 
 		
@@ -604,7 +606,7 @@ public class CooccurrencesVectorsHadoop {
 				while((wordsPairsLine = bufferedReader.readLine()) != null) 
 				{
 					String[] splitWords = wordsPairsLine.split("\\t");
-					String key = (Stemmer.stemWord(splitWords[0]) + Stemmer.stemWord(splitWords[1]));
+					String key = (Stemmer.stemWord(splitWords[0]) + "," + Stemmer.stemWord(splitWords[1]));
 					goldStandardPairs.put(key, splitWords[2]);
 				}
 				bufferedReader.close();
@@ -625,38 +627,33 @@ public class CooccurrencesVectorsHadoop {
 	
 		public void reduce(Text lexemesPair, Iterable<CooccurrencesVector> vectors, Context context) throws IOException, InterruptedException 
 		{
-			String key = lexemesPair.toString();
-			String[] splitKey = key.split(",");
-			String leftInPair = splitKey[0];
-			String rightInPair = splitKey[1];
-			String similarity = goldStandardPairs.get(key);		// Pair is already sorted lexicographically
-			boolean leftExists = false;
-			boolean rightExists = false;
-			CooccurrencesVector leftVector = new CooccurrencesVector();
-			CooccurrencesVector rightVector = new CooccurrencesVector();
-			
-			for (CooccurrencesVector vector : vectors)			// Get both vectors
-			{
-				if (vector.getLexeme().equals(leftInPair))			// Set left vector
-				{
-					leftExists = true;
-					leftVector = new CooccurrencesVector(vector); 
-				}
-				else if (vector.getLexeme().equals(rightInPair))	// Set right vector
-				{
-					rightExists = true;
-					rightVector = new CooccurrencesVector(vector); 
-				}
+			String similarity = goldStandardPairs.get(lexemesPair.toString());
+			if (similarity == null) {										// If pair does not exist in golden standard annotation, ignore.
+				return;
 			}
+			CooccurrencesVector vector1 = new CooccurrencesVector();
+			CooccurrencesVector vector2 = new CooccurrencesVector();
 			
+			
+			/* Iterate over Iterable<vector> to find both the vectors (if exist) */
 			// Ensure both the lexemes exist in corpus.
 			// (since mapper sent all pairs from gold standard, which some might not appear in our corpus)
 			
-			if (leftExists && rightExists) 				
-			{
-				VectorsSimilaritiesWritable vectorSim = leftVector.vectorsSim(rightVector, similarity);	// Compute similarities and write to output
-				context.write(lexemesPair, new Text(vectorSim.toString()));
-			}
+            Iterator<CooccurrencesVector> vectorsIter = vectors.iterator();
+            
+            if (vectorsIter.hasNext()) 
+            {
+                vector1 = new CooccurrencesVector((CooccurrencesVector) vectorsIter.next());
+            }
+            
+            if (vectorsIter.hasNext())
+            {
+            	vector2 = new CooccurrencesVector((CooccurrencesVector) vectorsIter.next());
+                
+                VectorsSimilaritiesWritable vectorSim = vector1.vectorsSim(vector2, similarity);	// Compute similarities and write to output
+				//context.write(lexemesPair, new Text(vectorSim.toString()));
+                context.write(new Text("<" + vector1.getLexeme() + "," + vector2.getLexeme() + ">"), new Text(vectorSim.toString()));
+            }
 		}
 	}
 	
@@ -828,7 +825,7 @@ public class CooccurrencesVectorsHadoop {
 		/***********************************	Print MapReduce jobs stats	 *****************************************/
 		
 		
-		Job[] jobs = { job1, job2, job3, job4, job5};
+		Job[] jobs = { job1, job2, job3, job4, job5 };
 		for (int i = 0; i < jobs.length; i++) 
 		{
 			System.out.println("Phase " + (i+1) + " Key-Value Pairs:");

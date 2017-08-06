@@ -150,6 +150,6 @@ public class MeasuresWritable implements WritableComparable<MeasuresWritable> {
 	public String toString() {
 		return "<" + lexeme + "," + feature + "," + Integer.toString(raw_frequency) + "," + 
 				Double.toString(relative_frequency) + "," + Double.toString(pmi) + "," + 
-				Double.toString(t_test) + ">\n";
+				Double.toString(t_test) + ">";
 	}
 }

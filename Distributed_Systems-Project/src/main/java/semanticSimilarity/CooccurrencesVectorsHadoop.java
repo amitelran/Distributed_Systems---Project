@@ -14,6 +14,7 @@ import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.GzipCodec;
@@ -46,7 +47,7 @@ public class CooccurrencesVectorsHadoop {
 	/******************************************** 	Mapper A	 *******************************************/
 
 
-	public static class TokenizerMapper extends Mapper<Text, Text, Text, IntWritable> {
+	public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
 
 		private Set<String> goldStandardWords = new HashSet<String>();
 		private SyntacticNgram currNgram = new SyntacticNgram();
@@ -106,7 +107,7 @@ public class CooccurrencesVectorsHadoop {
 		// output: 		key: lexeme | feature | <lexeme, feature>, 	value: total count as indicated in ngram line
 
 
-		public void map(Text key, Text value, Context context) throws IOException,  InterruptedException 
+		public void map(LongWritable key, Text value, Context context) throws IOException,  InterruptedException 
 		{
 			SyntacticNgramLine ngramLine;
 			try { ngramLine = new SyntacticNgramLine(value.toString());	}	// Parse line of input file into SyntacticNgramLine structure
@@ -680,27 +681,6 @@ public class CooccurrencesVectorsHadoop {
 		}
 		
 		int num_of_corpus_files = Integer.parseInt(args[3]);				// Get number of input corpus files to model on
-		String inputPath = "s3://dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
-		String[] paths = new String[num_of_corpus_files];
-		String indexStringed;
-		
-		for (int i = 0; ((i < num_of_corpus_files) && (i < 10)); i++ )
-		{
-			indexStringed = "0";
-			indexStringed += String.valueOf(i);
-			String replacedString = inputPath.replace("xx", indexStringed);
-			paths[i] = replacedString;
-		}
-		if (num_of_corpus_files > 9) 
-		{
-			for (int k = 10; ((k < num_of_corpus_files) && (k < 100)); k++ )
-			{
-				indexStringed = String.valueOf(k);
-				String replacedString = inputPath.replace("xx", indexStringed);
-				paths[k] = replacedString;
-			}
-		}
-		
 		
 		Configuration conf = new Configuration();
 
@@ -723,12 +703,38 @@ public class CooccurrencesVectorsHadoop {
 		job1.setInputFormatClass(SequenceFileInputFormat.class);
 		
 		//job1.setInputFormatClass(SyntacticNgramInputFormat.class);
-
-		for (int i = 0; i < paths.length; i++) 
+		
+		if (num_of_corpus_files > 0) 										// If argument containing number of files to process given by user, process input files from corpus
 		{
-			SyntacticNgramInputFormat.addInputPath(job1, new Path(paths[i]));
+			String inputPath = "s3://dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
+			String[] paths = new String[num_of_corpus_files];
+			String indexStringed;
+			
+			for (int i = 0; ((i < num_of_corpus_files) && (i < 10)); i++ )
+			{
+				indexStringed = "0";
+				indexStringed += String.valueOf(i);
+				String replacedString = inputPath.replace("xx", indexStringed);
+				paths[i] = replacedString;
+			}
+			if (num_of_corpus_files > 9) 
+			{
+				for (int k = 10; ((k < num_of_corpus_files) && (k < 100)); k++ )
+				{
+					indexStringed = String.valueOf(k);
+					String replacedString = inputPath.replace("xx", indexStringed);
+					paths[k] = replacedString;
+				}
+			}
+			for (int i = 0; i < paths.length; i++) 
+			{
+				SequenceFileInputFormat.addInputPath(job1, new Path(paths[i]));
+			}
 		}
-		//SyntacticNgramInputFormat.addInputPath(job1, new Path(args[0]));
+		else {				// Argument with number was not provided --> process files from /input folder in yoav.amit.dsp-project bucket
+			SequenceFileInputFormat.addInputPath(job1, new Path(args[0]));
+		}
+		
 		job1.setOutputFormatClass(SequenceFileOutputFormat.class);
 		SequenceFileOutputFormat.setOutputCompressionType(job1, CompressionType.BLOCK);
 		SequenceFileOutputFormat.setOutputPath(job1, new Path(args[1]+".intermediate1"));
@@ -748,8 +754,6 @@ public class CooccurrencesVectorsHadoop {
 		/***********************************	Job 2 - MapReduce B	 *****************************************/
 		
 		
-		//conf.setLong("numOfTweets", job1.getCounters().findCounter(TaskCounter.MAP_INPUT_RECORDS).getValue());
-
 		Job job2 = Job.getInstance(conf, "Gather Features Data");
 		job2.setJarByClass(CooccurrencesVectorsHadoop.class);
 		
@@ -857,7 +861,7 @@ public class CooccurrencesVectorsHadoop {
 		/***********************************	Print MapReduce jobs stats	 *****************************************/
 		
 		
-		Job[] jobs = { job1, job2, job3, job4, job5 };
+		Job[] jobs = { job1, job2, job3, job4, job5};
 		for (int i = 0; i < jobs.length; i++) 
 		{
 			System.out.println("Phase " + (i+1) + " Key-Value Pairs:");

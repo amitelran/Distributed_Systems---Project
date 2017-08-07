@@ -41,6 +41,7 @@ public class SyntacticNgram implements Writable {
     	pos_tag = other.getPosTag().toLowerCase();
     	dep_label = other.getDependancyLabel().toLowerCase();
     	head_index = other.getHeadIndex();
+    	writtenToContext = false;
     }
     
     

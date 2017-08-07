@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
+import java.text.ParseException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -45,7 +46,7 @@ public class CooccurrencesVectorsHadoop {
 	/******************************************** 	Mapper A	 *******************************************/
 
 
-	public static class TokenizerMapper extends Mapper<Text, SyntacticNgramLine, Text, IntWritable> {
+	public static class TokenizerMapper extends Mapper<Text, Text, Text, IntWritable> {
 
 		private Set<String> goldStandardWords = new HashSet<String>();
 		private SyntacticNgram currNgram = new SyntacticNgram();
@@ -101,12 +102,16 @@ public class CooccurrencesVectorsHadoop {
 		/*******************************************	map	 ***********************************************/
 
 
-		// input: 		key: ngram head word, 						value: syntactic ngram line
+		// input: 		Syntactic Ngram Line
 		// output: 		key: lexeme | feature | <lexeme, feature>, 	value: total count as indicated in ngram line
 
 
-		public void map(Text headWord, SyntacticNgramLine ngramLine, Context context) throws IOException,  InterruptedException 
+		public void map(Text key, Text value, Context context) throws IOException,  InterruptedException 
 		{
+			SyntacticNgramLine ngramLine;
+			try { ngramLine = new SyntacticNgramLine(value.toString());	}	// Parse line of input file into SyntacticNgramLine structure
+			catch (ParseException e1) { return; }	
+			
 			SyntacticNgram[] ngrams = ngramLine.copyNgrams();			// Extract syntactic ngrams array for multiple uses
 			total_count.set(ngramLine.getTotalCount());					// Extract total count integer for multiple uses
 
@@ -121,7 +126,8 @@ public class CooccurrencesVectorsHadoop {
 					headIndexNgram = ngrams[currNgram.getHeadIndex()];			// Head word is the current Ngram
 				}
 				else {
-					headIndexNgram = ngrams[currNgram.getHeadIndex() - 1];		// Get the 'head' word which points on current Ngram
+					try { headIndexNgram = ngrams[currNgram.getHeadIndex() - 1]; }  	// Get the 'head' word which points on current Ngram
+					catch (Exception e) { continue; }
 				}
 				
 				String headIndexWord = headIndexNgram.getWord();					
@@ -132,6 +138,8 @@ public class CooccurrencesVectorsHadoop {
 				}
 				
 				// If head-index had not been written to context yet --> write, and flag as "written"
+				// If head-index is already a lexeme counted and written to text, ignore (avoid multiple writings).
+				
 				if (!currNgram.isWritten()) 											
 				{ 											
 					token.set(headIndexWord);											// Send lexeme and total count
@@ -146,7 +154,6 @@ public class CooccurrencesVectorsHadoop {
 
 				token.set(headIndexWord + "," + currWord + "-" + dependancyLabel);		// Send "lexeme, feature" and total count
 				context.write(token, total_count);
-
 			}
 		}
 	}
@@ -646,13 +653,10 @@ public class CooccurrencesVectorsHadoop {
                 vector1 = new CooccurrencesVector((CooccurrencesVector) vectorsIter.next());
             }
             
-            if (vectorsIter.hasNext())
+            if (vectorsIter.hasNext())			// If we have two vectors, each for lexeme in the pair, compute similarities and write to output
             {
             	vector2 = new CooccurrencesVector((CooccurrencesVector) vectorsIter.next());
-                
-                VectorsSimilaritiesWritable vectorSim = vector1.vectorsSim(vector2, similarity);	// Compute similarities and write to output
-				//context.write(lexemesPair, new Text(vectorSim.toString()));
-                context.write(new Text("<" + vector1.getLexeme() + "," + vector2.getLexeme() + ">"), new Text(vectorSim.toString()));
+                context.write(new Text("<" + vector1.getLexeme() + "," + vector2.getLexeme() + ">"), new Text(vector1.vectorsSim(vector2, similarity)));
             }
 		}
 	}
@@ -670,10 +674,31 @@ public class CooccurrencesVectorsHadoop {
 	
 	public static void main(String[] args) throws Exception 
 	{
-		
-		if(args.length < 3) {
-			System.err.println("Not enough arguments. needed <InputPath> <OutputPath> <GoldStandardDatasetFilePath>");
+		if(args.length < 4) {
+			System.err.println("Not enough arguments.\n Arguments required: <InputFilesBucketPath> <OutputFilesBucketPath> <GoldStandardDatasetBucketPath> <NumberOfInputCorpusFiles>\n");
 			System.exit(1);
+		}
+		
+		int num_of_corpus_files = Integer.parseInt(args[3]);				// Get number of input corpus files to model on
+		String inputPath = "s3://dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
+		String[] paths = new String[num_of_corpus_files];
+		String indexStringed;
+		
+		for (int i = 0; ((i < num_of_corpus_files) && (i < 10)); i++ )
+		{
+			indexStringed = "0";
+			indexStringed += String.valueOf(i);
+			String replacedString = inputPath.replace("xx", indexStringed);
+			paths[i] = replacedString;
+		}
+		if (num_of_corpus_files > 9) 
+		{
+			for (int k = 10; ((k < num_of_corpus_files) && (k < 100)); k++ )
+			{
+				indexStringed = String.valueOf(k);
+				String replacedString = inputPath.replace("xx", indexStringed);
+				paths[k] = replacedString;
+			}
 		}
 		
 		
@@ -695,8 +720,15 @@ public class CooccurrencesVectorsHadoop {
 		job1.setOutputKeyClass(Text.class);
 		job1.setOutputValueClass(IntWritable.class);
 		
-		job1.setInputFormatClass(SyntacticNgramInputFormat.class);
-		SyntacticNgramInputFormat.addInputPath(job1, new Path(args[0]));
+		job1.setInputFormatClass(SequenceFileInputFormat.class);
+		
+		//job1.setInputFormatClass(SyntacticNgramInputFormat.class);
+
+		for (int i = 0; i < paths.length; i++) 
+		{
+			SyntacticNgramInputFormat.addInputPath(job1, new Path(paths[i]));
+		}
+		//SyntacticNgramInputFormat.addInputPath(job1, new Path(args[0]));
 		job1.setOutputFormatClass(SequenceFileOutputFormat.class);
 		SequenceFileOutputFormat.setOutputCompressionType(job1, CompressionType.BLOCK);
 		SequenceFileOutputFormat.setOutputPath(job1, new Path(args[1]+".intermediate1"));

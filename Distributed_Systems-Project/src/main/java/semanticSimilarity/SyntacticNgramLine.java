@@ -4,6 +4,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable; 
  
@@ -32,16 +35,19 @@ public class SyntacticNgramLine implements Writable {
         headWord = new Text(Stemmer.stemWord(lineSplit[0])); 		// Set headWord as the 'Stemmed' word
         
         String[] synNgramsSplit = lineSplit[1].split("\\s+");		// Split syntactic ngrams by whitespace (every split is of form "word/pos-tag/dep-label/head-index")
-        ngrams = new SyntacticNgram[synNgramsSplit.length];
+        
+        List<SyntacticNgram> ngramsList = new LinkedList<SyntacticNgram>();
         for (int i = 0; i < synNgramsSplit.length; i++) 
         {
         	String[] ngramSplits = synNgramsSplit[i].split("/");
         	if ((ngramSplits.length == 4) && (ngramSplits[0] != null) && (ngramSplits[1] != null) && (ngramSplits[2] != null) && (ngramSplits[3] != null))
         	{							
         		SyntacticNgram synNgram = new SyntacticNgram(ngramSplits[0], ngramSplits[1], ngramSplits[2], ngramSplits[3]);
-            	ngrams[i] = synNgram;;
+            	ngramsList.add(synNgram);
         	}	
         }
+        ngrams = new SyntacticNgram[ngramsList.size()];
+        ngramsList.toArray(ngrams); 					// Filling the array
         total_count = Integer.parseInt(lineSplit[2]);
     }
     
@@ -114,13 +120,17 @@ public class SyntacticNgramLine implements Writable {
     
     public SyntacticNgram[] copyNgrams()
     {
-    	SyntacticNgram[] copiedNgrams = new SyntacticNgram[this.ngrams.length];
+    	SyntacticNgram[] synNgram = new SyntacticNgram[this.ngrams.length];
     	for (int i = 0; i < this.ngrams.length; i++)
     	{
-    		copiedNgrams[i] = new SyntacticNgram();
-    		copiedNgrams[i].copyNgram(this.ngrams[i]);
+    		try {
+    			synNgram[i] = (new SyntacticNgram(this.ngrams[i]));
+    		}
+    		catch (Exception e){
+    			continue;
+    		}
     	}
-    	return copiedNgrams;
+    	return synNgram;
     }
 
 }

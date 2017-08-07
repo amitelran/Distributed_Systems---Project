@@ -158,6 +158,121 @@ public class CooccurrencesVectorsHadoop {
 			}
 		}
 	}
+	
+	
+	
+	/*******************************************************************************************************/
+	/**************************** 	Mapper A - Corresponding to txt files	 *******************************/
+
+
+	public static class TokenizerTxtMapper extends Mapper<Text, SyntacticNgramLine, Text, IntWritable> {
+
+		private Set<String> goldStandardWords = new HashSet<String>();
+		private SyntacticNgram currNgram = new SyntacticNgram();
+		private Text token = new Text();
+		private IntWritable total_count = new IntWritable();
+
+
+
+		/*********** 	Read gold standard dataset words before starting the mapper	 ***********/
+
+
+		@Override
+		protected void setup(Context context) throws IOException, InterruptedException 
+		{
+			if (context.getCacheFiles() != null && context.getCacheFiles().length > 0) {
+				URI mappingFileUri = context.getCacheFiles()[0];
+
+				if (mappingFileUri != null) {
+					readGoldStandardFile("./word-relatedness");
+				} 
+				else {
+					System.out.println(">>>>>> NO MAPPING FILE");
+				}
+			} 
+			else {
+				System.out.println(">>>>>> NO CACHE FILES AT ALL");
+			}
+		}
+
+
+		/*********** 	Read gold standard dataset file	 ***********/
+
+
+		private void readGoldStandardFile(String path) {
+			try {
+				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+				String wordsPairsLine = null;
+				while((wordsPairsLine = bufferedReader.readLine()) != null) 
+				{
+					String[] splitWords = wordsPairsLine.split("\\t");
+					goldStandardWords.add(Stemmer.stemWord(splitWords[0]));
+					goldStandardWords.add(Stemmer.stemWord(splitWords[1]));
+				}
+				bufferedReader.close();
+			} 
+			catch(IOException ex) {
+				System.err.println("Exception while reading gold standard dataset file: " + ex.getMessage());
+			}
+		}
+
+
+
+		/*******************************************	map	 ***********************************************/
+
+
+		// input: 		Syntactic Ngram Line
+		// output: 		key: lexeme | feature | <lexeme, feature>, 	value: total count as indicated in ngram line
+
+
+		public void map(Text headWord, SyntacticNgramLine ngramLine, Context context) throws IOException,  InterruptedException 
+		{
+			SyntacticNgram[] ngrams = ngramLine.copyNgrams();			// Extract syntactic ngrams array for multiple uses
+			total_count.set(ngramLine.getTotalCount());					// Extract total count integer for multiple uses
+
+			for (int i = 0; i < ngrams.length; i++) 
+			{
+				currNgram = ngrams[i];
+				String currWord = currNgram.getWord();
+				String dependancyLabel = currNgram.getDependancyLabel();
+				
+				SyntacticNgram headIndexNgram = new SyntacticNgram();
+				if (currNgram.getHeadIndex() == 0) {
+					headIndexNgram = ngrams[currNgram.getHeadIndex()];			// Head word is the current Ngram
+				}
+				else {
+					try { headIndexNgram = ngrams[currNgram.getHeadIndex() - 1]; }  	// Get the 'head' word which points on current Ngram
+					catch (Exception e) { continue; }
+				}
+				
+				String headIndexWord = headIndexNgram.getWord();					
+
+				// If the head-index word is not a part of the gold standard dataset --> no need to build co-occurrences vector
+				if (!(goldStandardWords.contains(headIndexWord))) {
+					continue;
+				}
+				
+				// If head-index had not been written to context yet --> write, and flag as "written"
+				// If head-index is already a lexeme counted and written to text, ignore (avoid multiple writings).
+				
+				if (!currNgram.isWritten()) 											
+				{ 											
+					token.set(headIndexWord);											// Send lexeme and total count
+					context.write(token, total_count);
+					context.getCounter(GLOBAL_COUNTERS.NUM_OF_LEXEMES).increment(total_count.get());
+					currNgram.setWritten();
+				}
+				
+				token.set(currWord + "-" + dependancyLabel);							// Send feature (word-dep_label) and total count
+				context.write(token, total_count);
+				context.getCounter(GLOBAL_COUNTERS.NUM_OF_FEATURES).increment(total_count.get());
+
+				token.set(headIndexWord + "," + currWord + "-" + dependancyLabel);		// Send "lexeme, feature" and total count
+				context.write(token, total_count);
+			}
+		}
+	}
+
 
 
 
@@ -475,7 +590,8 @@ public class CooccurrencesVectorsHadoop {
 	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, Text, CooccurrencesVector> {
 				
 		
-		private Set<String> goldStandardWords = new HashSet<String>();		
+		private Set<String> goldStandardWords = new HashSet<String>();	
+		private Text lexemesPair = new Text();
 		
 
 		/*********** 	Setup - Read gold standard dataset words before starting the mapper	 ***********/
@@ -506,6 +622,7 @@ public class CooccurrencesVectorsHadoop {
 
 		private void readGoldStandardFile(String path) 
 		{
+			
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 				String wordsPairsLine = null;
@@ -539,13 +656,12 @@ public class CooccurrencesVectorsHadoop {
 		public void map(Text lexeme_name, CooccurrencesVector vector, Context context) throws IOException,  InterruptedException 
 		{	
 			String lexeme = lexeme_name.toString();
-			
-			for (String otherLexeme : goldStandardWords)		// Send all <lexeme, otherLexeme> pairs, besides the same lexeme pair
+			for (String otherLexeme : goldStandardWords) 
 			{
-				if (otherLexeme.equals(lexeme)) {				// Don't send same lexeme pairs
-					continue;
+				if (!(lexeme.equals(otherLexeme))) {					// Don't send same lexeme pairs
+					lexemesPair.set(orderPairLexicograph(lexeme, otherLexeme));
+					context.write(lexemesPair, vector);		// Sort pair lexicographically to ensure same key
 				}
-				context.write(new Text(orderPairLexicograph(lexeme, otherLexeme)), vector);		// Sort pair lexicographically to ensure same key
 			}
 		}
 		
@@ -639,8 +755,9 @@ public class CooccurrencesVectorsHadoop {
 			if (similarity == null) {										// If pair does not exist in golden standard annotation, ignore.
 				return;
 			}
-			CooccurrencesVector vector1 = new CooccurrencesVector();
-			CooccurrencesVector vector2 = new CooccurrencesVector();
+			
+			CooccurrencesVector vector1 = null;
+			CooccurrencesVector vector2 = null;
 			
 			
 			/* Iterate over Iterable<vector> to find both the vectors (if exist) */
@@ -657,7 +774,7 @@ public class CooccurrencesVectorsHadoop {
             if (vectorsIter.hasNext())			// If we have two vectors, each for lexeme in the pair, compute similarities and write to output
             {
             	vector2 = new CooccurrencesVector((CooccurrencesVector) vectorsIter.next());
-                context.write(new Text("<" + vector1.getLexeme() + "," + vector2.getLexeme() + ">"), new Text(vector1.vectorsSim(vector2, similarity)));
+                context.write(new Text("<" + vector1.getLexeme() + "," + vector2.getLexeme() + ">"), new Text(vector1.vectorsSim(vector2, similarity.toLowerCase())));
             }
 		}
 	}
@@ -683,6 +800,7 @@ public class CooccurrencesVectorsHadoop {
 		int num_of_corpus_files = Integer.parseInt(args[3]);				// Get number of input corpus files to model on
 		
 		Configuration conf = new Configuration();
+		conf.setInt("mapreduce.task.timeout", 180000000);					// Set timeout, particularly for Mapper E
 
 		
 		/***********************************	Job 1 - MapReduce A	 *****************************************/
@@ -691,21 +809,13 @@ public class CooccurrencesVectorsHadoop {
 		Job job1 = Job.getInstance(conf, "Tokens Count");
 		job1.setJarByClass(CooccurrencesVectorsHadoop.class);
 		
-		job1.setMapperClass(TokenizerMapper.class);
-		job1.setCombinerClass(TokenizerSumReducer.class);
-		job1.setReducerClass(TokenizerSumReducer.class);
 		
-		job1.setMapOutputKeyClass(Text.class);
-		job1.setMapOutputValueClass(IntWritable.class);
-		job1.setOutputKeyClass(Text.class);
-		job1.setOutputValueClass(IntWritable.class);
 		
-		job1.setInputFormatClass(SequenceFileInputFormat.class);
-		
-		//job1.setInputFormatClass(SyntacticNgramInputFormat.class);
 		
 		if (num_of_corpus_files > 0) 										// If argument containing number of files to process given by user, process input files from corpus
 		{
+			job1.setMapperClass(TokenizerMapper.class);
+			job1.setInputFormatClass(SequenceFileInputFormat.class);
 			String inputPath = "s3://dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
 			String[] paths = new String[num_of_corpus_files];
 			String indexStringed;
@@ -732,8 +842,18 @@ public class CooccurrencesVectorsHadoop {
 			}
 		}
 		else {				// Argument with number was not provided --> process files from /input folder in yoav.amit.dsp-project bucket
+			job1.setMapperClass(TokenizerTxtMapper.class);
+			job1.setInputFormatClass(SyntacticNgramInputFormat.class);
 			SequenceFileInputFormat.addInputPath(job1, new Path(args[0]));
 		}
+		
+		job1.setCombinerClass(TokenizerSumReducer.class);
+		job1.setReducerClass(TokenizerSumReducer.class);
+		
+		job1.setMapOutputKeyClass(Text.class);
+		job1.setMapOutputValueClass(IntWritable.class);
+		job1.setOutputKeyClass(Text.class);
+		job1.setOutputValueClass(IntWritable.class);
 		
 		job1.setOutputFormatClass(SequenceFileOutputFormat.class);
 		SequenceFileOutputFormat.setOutputCompressionType(job1, CompressionType.BLOCK);
@@ -839,7 +959,6 @@ public class CooccurrencesVectorsHadoop {
 		
 		Job job5 = Job.getInstance(conf, "Vectors Similiarities");
 		job5.setJarByClass(CooccurrencesVectorsHadoop.class);
-		
 		job5.setMapperClass(VectorsSimMapper.class);
 		job5.setReducerClass(VectorsSimReducer.class);
 		

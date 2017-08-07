@@ -175,7 +175,7 @@ public class Weka {
 			eval.crossValidateModel(randForest, data, folds, new Random(1));	// <classifier, data file, , 10-fold cross-validation, random number generator for randomization>
 
 			System.out.println(eval.toSummaryString(("\nWeka Results\n===========\n"), true));
-			System.out.println(eval.fMeasure(1) + " " + eval.precision(1) + " " + eval.recall(1));		// F1 measure, precision, recall stats
+			System.out.println(eval.fMeasure(0) + " " + eval.precision(0) + " " + eval.recall(0));		// F1 measure, precision, recall stats ('0' is the index of the class to consider as "positive")
 			System.out.println(eval.toMatrixString());
 			
 			ret = writeResultsToFile(outputPath, eval);					// Write WEKA classification results to file
@@ -203,9 +203,9 @@ public class Weka {
 			PrintWriter writer = new PrintWriter(outputPath, "UTF-8");
 			writer.println("Yoav Beeri & Amit Elran - Distributed Systems Programming Project");
 			writer.println((eval.toSummaryString(("\nWeka Results\n========================\n"), true)));
-			writer.println("F1 Measure: " + eval.fMeasure(1));
-			writer.println("Precision: " + eval.precision(1));
-			writer.println("Recall: " + eval.recall(1));
+			writer.println("F1 Measure: " + eval.fMeasure(0));
+			writer.println("Precision: " + eval.precision(0));
+			writer.println("Recall: " + eval.recall(0));
 			writer.println();
 			writer.println("True-Positive rate: " + eval.truePositiveRate(1));
 			writer.println("False-Positive rate: " + eval.falsePositiveRate(1));

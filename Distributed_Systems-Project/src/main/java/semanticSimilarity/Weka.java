@@ -6,9 +6,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
 import java.util.Random;
 
 import weka.classifiers.Evaluation;
@@ -85,7 +82,7 @@ public class Weka {
 		writer.println("@ATTRIBUTE t_test_jaccard	NUMERIC");
 		writer.println("@ATTRIBUTE t_test_dice	NUMERIC");
 
-		writer.println("@ATTRIBUTE similar	{true,false}");
+		writer.println("@ATTRIBUTE similar	{false,true}");
 
 		writer.println();
 		writer.println("@DATA");
@@ -100,42 +97,32 @@ public class Weka {
 	public static int write_S3File_to_ARFF_File(BufferedReader reader, String arffFile) 
 	{
 		int ret = 0;
-		List<String> lexemePairsList = new LinkedList<String>();		// List to store lexemes pair for latter use
 		try {
 			PrintWriter writer = new PrintWriter(new FileWriter(arffFile, true));			/* Append to file = true */
 			try 
 			{
-				List<String> arffLines = new LinkedList<String>();					// Generate new lines withot string attributes
-
-
 				/* Read line by line from S3 file, but put aside the lexemes pair (strings), and use them after the classification */
 
 				String line;
 				while((line = reader.readLine()) != null) 
 				{
-					String lexemes = "";
+					String lexemes = "% ";
 					String measures = "";
 					int i = 0;
 					while (i < line.length() && !Character.isDigit(line.charAt(i))) {
 						lexemes += line.charAt(i);
 						i++;
 					}
+					writer.println(lexemes);
 					int j = i;
 					while (j < line.length()) {
 						measures += line.charAt(j);
 						j++;
 					}
-					lexemePairsList.add(lexemes);
-					arffLines.add(measures);
+					writer.println(measures);
 				}
-
-				/* Write lines without the lexemes string within them */
-
-				ListIterator<String> listIter = arffLines.listIterator();
-				while (listIter.hasNext()) { writer.println(listIter.next()); }
 			}
 			finally {
-				writer.flush();
 				writer.close();
 				ret = 1;
 			}
@@ -175,7 +162,7 @@ public class Weka {
 			eval.crossValidateModel(randForest, data, folds, new Random(1));	// <classifier, data file, , 10-fold cross-validation, random number generator for randomization>
 
 			System.out.println(eval.toSummaryString(("\nWeka Results\n===========\n"), true));
-			System.out.println(eval.fMeasure(0) + " " + eval.precision(0) + " " + eval.recall(0));		// F1 measure, precision, recall stats ('0' is the index of the class to consider as "positive")
+			System.out.println(eval.fMeasure(1) + " " + eval.precision(1) + " " + eval.recall(1));		// F1 measure, precision, recall stats ('0' is the index of the class to consider as "positive")
 			System.out.println(eval.toMatrixString());
 			
 			ret = writeResultsToFile(outputPath, eval);					// Write WEKA classification results to file
@@ -203,9 +190,9 @@ public class Weka {
 			PrintWriter writer = new PrintWriter(outputPath, "UTF-8");
 			writer.println("Yoav Beeri & Amit Elran - Distributed Systems Programming Project");
 			writer.println((eval.toSummaryString(("\nWeka Results\n========================\n"), true)));
-			writer.println("F1 Measure: " + eval.fMeasure(0));
-			writer.println("Precision: " + eval.precision(0));
-			writer.println("Recall: " + eval.recall(0));
+			writer.println("F1 Measure: " + eval.fMeasure(1));
+			writer.println("Precision: " + eval.precision(1));
+			writer.println("Recall: " + eval.recall(1));
 			writer.println();
 			writer.println("True-Positive rate: " + eval.truePositiveRate(1));
 			writer.println("False-Positive rate: " + eval.falsePositiveRate(1));

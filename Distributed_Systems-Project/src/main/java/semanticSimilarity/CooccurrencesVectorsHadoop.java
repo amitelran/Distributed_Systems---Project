@@ -957,7 +957,7 @@ public class CooccurrencesVectorsHadoop {
 		/***********************************	Job 5 - MapReduce E	 *****************************************/
 		
 		
-		Job job5 = Job.getInstance(conf, "Vectors Similiarities");
+		Job job5 = Job.getInstance(conf, "Vectors Similarities");
 		job5.setJarByClass(CooccurrencesVectorsHadoop.class);
 		job5.setMapperClass(VectorsSimMapper.class);
 		job5.setReducerClass(VectorsSimReducer.class);

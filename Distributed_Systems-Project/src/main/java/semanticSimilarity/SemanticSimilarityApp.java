@@ -143,9 +143,9 @@ public class SemanticSimilarityApp {
 					.withActionOnFailure("TERMINATE_JOB_FLOW");
 
 			JobFlowInstancesConfig instances = new JobFlowInstancesConfig()
-					.withMasterInstanceType(InstanceType.M32xlarge.toString())
-					.withSlaveInstanceType(InstanceType.M32xlarge.toString())
-					.withInstanceCount(5)
+					.withMasterInstanceType(InstanceType.I22xlarge.toString())
+					.withSlaveInstanceType(InstanceType.I22xlarge.toString())
+					.withInstanceCount(3)
 					.withHadoopVersion("2.7.3")
 					.withKeepJobFlowAliveWhenNoSteps(false)
 					.withPlacement(new PlacementType("us-east-1a"));
@@ -253,6 +253,7 @@ public class SemanticSimilarityApp {
 					out.write(cbuf, 0, b);
 					out.flush();
 				}
+				reader.close();
 				s3.deleteObject(new DeleteObjectRequest(elem.getBucketName(), elem.getKey()));		// Delete file after getting contents
 			}
 			out.close();

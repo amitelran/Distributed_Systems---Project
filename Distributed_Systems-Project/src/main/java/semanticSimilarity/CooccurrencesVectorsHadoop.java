@@ -47,8 +47,8 @@ public class CooccurrencesVectorsHadoop {
 	/******************************************** 	Mapper A	 *******************************************/
 
 
-	public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
-
+	public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, IntWritable> 
+	{
 		private Set<String> goldStandardWords = new HashSet<String>();
 		private SyntacticNgram currNgram = new SyntacticNgram();
 		private Text token = new Text();
@@ -81,7 +81,8 @@ public class CooccurrencesVectorsHadoop {
 		/*********** 	Read gold standard dataset file	 ***********/
 
 
-		private void readGoldStandardFile(String path) {
+		private void readGoldStandardFile(String path) 
+		{
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 				String wordsPairsLine = null;
@@ -165,8 +166,8 @@ public class CooccurrencesVectorsHadoop {
 	/**************************** 	Mapper A - Corresponding to txt files	 *******************************/
 
 
-	public static class TokenizerTxtMapper extends Mapper<Text, SyntacticNgramLine, Text, IntWritable> {
-
+	public static class TokenizerTxtMapper extends Mapper<Text, SyntacticNgramLine, Text, IntWritable> 
+	{
 		private Set<String> goldStandardWords = new HashSet<String>();
 		private SyntacticNgram currNgram = new SyntacticNgram();
 		private Text token = new Text();
@@ -199,7 +200,8 @@ public class CooccurrencesVectorsHadoop {
 		/*********** 	Read gold standard dataset file	 ***********/
 
 
-		private void readGoldStandardFile(String path) {
+		private void readGoldStandardFile(String path) 
+		{
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 				String wordsPairsLine = null;
@@ -281,7 +283,8 @@ public class CooccurrencesVectorsHadoop {
 	/******************************************** 	Reducer A	 *******************************************/
 
 
-	public static class TokenizerSumReducer extends Reducer<Text, IntWritable, Text, IntWritable> {	
+	public static class TokenizerSumReducer extends Reducer<Text, IntWritable, Text, IntWritable> 
+	{	
 
 		// input: 		key: lexeme | feature | <lexeme, feature>, 		value: Iterable<counts>
 		// output: 		key: lexeme | feature | <lexeme, feature>, 		value: summed count
@@ -300,7 +303,7 @@ public class CooccurrencesVectorsHadoop {
 
 
 
-	/********************************************************************************************************************************************/
+/********************************************************************************************************************************************/
 
 
 
@@ -309,15 +312,12 @@ public class CooccurrencesVectorsHadoop {
 	/******************************************** 	Mapper B	 *******************************************/
 
 
-	public static class PairSplitMapper extends Mapper<Text, IntWritable, PairWritable, Text> {
-
-
-		private String asterixFlag = "*";
-
+	public static class PairSplitMapper extends Mapper<Text, IntWritable, PairWritable, Text> 
+	{
 
 		// input: 		key: lexeme | feature | <lexeme, feature>, 					value: summed count
 		// output: 		key: <lexeme, '*'> | <feature, '*'> | <lexeme, "1">, 		value: summed count | <feature, total count lexeme \w feature>
-		//                                                              ----> "1" value is not important, just a filler
+		//                                                       ----> "1" value is not important, just a filler
 
 
 		public void map(Text token, IntWritable total_count, Context context) throws IOException,  InterruptedException 
@@ -337,7 +337,7 @@ public class CooccurrencesVectorsHadoop {
 			// Case token is lexeme only or feature only
 			else 
 			{
-				pair = new PairWritable(key, asterixFlag);				// create pair: <lexeme, '*'> or <feature, '*'>
+				pair = new PairWritable(key, "*");						// create pair: <lexeme, '*'> or <feature, '*'>
 				value.set(total_count.toString());						// create value: total_count
 			}
 			context.write(pair, value);
@@ -354,7 +354,8 @@ public class CooccurrencesVectorsHadoop {
 	// Thus, making pair of the form <element, "*"> and <element, "1"> reach the same reducer
 
 
-	public static class PairWritablePartitioner extends Partitioner<PairWritable, Text> {
+	public static class PairWritablePartitioner extends Partitioner<PairWritable, Text> 
+	{
 
 		@Override
 		public int getPartition(PairWritable keyPair, Text value, int numPartitions) 
@@ -439,7 +440,8 @@ public class CooccurrencesVectorsHadoop {
 	// Passes data on to the reducer
 
 
-	public static class IdentityMapper extends Mapper<PairWritable, Text, PairWritable, Text> {
+	public static class IdentityMapper extends Mapper<PairWritable, Text, PairWritable, Text> 
+	{
 
 		// input: 		key: <feature, '*'> | <feature, '1'>, 			value: summed count | <lexeme, lexeme&feature count, lexeme's total count>
 		// output: 		key: <feature, '*'> | <feature, '1'>, 			value: summed count | <lexeme, lexeme&feature count, lexeme's total count>
@@ -457,8 +459,8 @@ public class CooccurrencesVectorsHadoop {
 	/******************************************** 	Reducer C	 *******************************************/
 
 
-	public static class MeasuresOfAssocWithContextReducer extends Reducer<PairWritable, Text, Text, Feature> {
-
+	public static class MeasuresOfAssocWithContextReducer extends Reducer<PairWritable, Text, Text, Feature> 
+	{
 		public int totalFeatureCount = 0;
 		public double totalLexemesCorpus = 0;
 		public double totalFeaturesCorpus = 0;
@@ -485,7 +487,6 @@ public class CooccurrencesVectorsHadoop {
 		//				value:  Feature data structure containing all computed measures
 
 
-		
 		public void reduce(PairWritable featureKey, Iterable<Text> values, Context context) throws IOException, InterruptedException 
 		{
 			
@@ -540,9 +541,9 @@ public class CooccurrencesVectorsHadoop {
 	// This will enable us to construct the lexeme's co-occurrences vector
 	
 	
-	public static class VectorConstructorMapper extends Mapper<Text, Feature, Text, Feature> {
+	public static class VectorConstructorMapper extends Mapper<Text, Feature, Text, Feature> 
+	{
 
-		
 		// input: 		key: feature_name, 			value: Feature data structure
 		// output: 		key: lexeme, 				value: Feature data structure
 
@@ -581,16 +582,20 @@ public class CooccurrencesVectorsHadoop {
 	
 	
 	
+/********************************************************************************************************************************************/
+
+	
 	
 	/*******************************************************************************************************/
 	/******************************************** 	Mapper E	 *******************************************/
 
 
 	
-	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, Text, CooccurrencesVector> {
+	public static class VectorsSimMapper extends Mapper<Text, CooccurrencesVector, Text, CooccurrencesVector> 
+	{
 				
 		
-		private Set<String> goldStandardWords = new HashSet<String>();	
+		private Set<String> goldStandardWords = new HashSet<String>();			// Hash set of all Gold Standard Words
 		private Text lexemesPair = new Text();
 		
 
@@ -622,7 +627,6 @@ public class CooccurrencesVectorsHadoop {
 
 		private void readGoldStandardFile(String path) 
 		{
-			
 			try {
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 				String wordsPairsLine = null;
@@ -679,21 +683,21 @@ public class CooccurrencesVectorsHadoop {
 				return (word1 + "," + word2);
 			}
 		}
+		
 	}
 
 
 		
 	
-	
-	/*******************************************************************************************************/
+	/*******************************************************************************************************************/
 	/*********************************** 	Reducer E - Vectors Similarities generator	 *******************************/
 	
 	
 	
-	public static class VectorsSimReducer extends Reducer<Text, CooccurrencesVector, Text, Text> {
+	public static class VectorsSimReducer extends Reducer<Text, CooccurrencesVector, Text, Text> 
+	{
 		
-		
-		private Map<String, String> goldStandardPairs = new HashMap<String, String>();
+		private Map<String, String> goldStandardPairs = new HashMap<String, String>();		// Hash map of all pairs in Gold Standard (as we only need to compare our model with context to the given pairs in the dataset).
 
 
 		
@@ -782,7 +786,8 @@ public class CooccurrencesVectorsHadoop {
 
 	
 	
-	
+/********************************************************************************************************************************************/
+
 	
 	
 	/*******************************************************************************************************/
@@ -792,7 +797,8 @@ public class CooccurrencesVectorsHadoop {
 	
 	public static void main(String[] args) throws Exception 
 	{
-		if(args.length < 4) {
+		if (args.length < 4) 	
+		{
 			System.err.println("Not enough arguments.\n Arguments required: <InputFilesBucketPath> <OutputFilesBucketPath> <GoldStandardDatasetBucketPath> <NumberOfInputCorpusFiles>\n");
 			System.exit(1);
 		}
@@ -810,17 +816,15 @@ public class CooccurrencesVectorsHadoop {
 		job1.setJarByClass(CooccurrencesVectorsHadoop.class);
 		
 		
-		
-		
-		if (num_of_corpus_files > 0) 										// If argument containing number of files to process given by user, process input files from corpus
+		if (num_of_corpus_files > 0) 											// If argument containing number of files to process given by user, process input files from corpus
 		{
 			job1.setMapperClass(TokenizerMapper.class);
 			job1.setInputFormatClass(SequenceFileInputFormat.class);
 			String inputPath = "s3://dsp172/syntactic-ngram/biarcs/biarcs.xx-of-99";
-			String[] paths = new String[num_of_corpus_files];
+			String[] paths = new String[num_of_corpus_files];					// Path array for all corpus files paths
 			String indexStringed;
 			
-			for (int i = 0; ((i < num_of_corpus_files) && (i < 10)); i++ )
+			for (int i = 0; ((i < num_of_corpus_files) && (i < 10)); i++ )		// Get all files between 00-09 (or up to given number of corpus files given by user)
 			{
 				indexStringed = "0";
 				indexStringed += String.valueOf(i);
@@ -841,11 +845,14 @@ public class CooccurrencesVectorsHadoop {
 				SequenceFileInputFormat.addInputPath(job1, new Path(paths[i]));
 			}
 		}
-		else {				// Argument with number was not provided --> process files from /input folder in yoav.amit.dsp-project bucket
+		
+		// If argument with number was not provided --> process files from /input folder in yoav.amit.dsp-project bucket
+		else {											
 			job1.setMapperClass(TokenizerTxtMapper.class);
 			job1.setInputFormatClass(SyntacticNgramInputFormat.class);
 			SequenceFileInputFormat.addInputPath(job1, new Path(args[0]));
 		}
+		
 		
 		job1.setCombinerClass(TokenizerSumReducer.class);
 		job1.setReducerClass(TokenizerSumReducer.class);
@@ -862,8 +869,9 @@ public class CooccurrencesVectorsHadoop {
 		
 		job1.addCacheFile(new URI(args[2] + "#word-relatedness"));
 		
-		if(!job1.waitForCompletion(true))
+		if (!job1.waitForCompletion(true)) {
 			System.exit(1);
+		}
 		
 		
 		// Get global counters: counter for total appearances of lexemes in corpus, counter for total appearances of features in corpus
@@ -893,8 +901,9 @@ public class CooccurrencesVectorsHadoop {
 		SequenceFileOutputFormat.setOutputPath(job2, new Path(args[1]+".intermediate2"));
 		SequenceFileOutputFormat.setOutputCompressorClass(job2, GzipCodec.class);
 
-		if(!job2.waitForCompletion(true))
+		if (!job2.waitForCompletion(true)) {
 			System.exit(1);
+		}
 		
 		
 		/***********************************	Job 3 - MapReduce C	 *****************************************/
@@ -922,11 +931,12 @@ public class CooccurrencesVectorsHadoop {
 		SequenceFileOutputFormat.setOutputPath(job3, new Path(args[1]+".intermediate3"));
 		SequenceFileOutputFormat.setOutputCompressorClass(job3, GzipCodec.class);
 		
-		//FileOutputFormat.setOutputPath(job3, new Path(args[1]+".intermediate3"));
+		//FileOutputFormat.setOutputPath(job3, new Path(args[1]+".intermediate3"));				// Testing of intermediate data
 
 
-		if(!job3.waitForCompletion(true))
+		if (!job3.waitForCompletion(true)) {
 			System.exit(1);
+		}
 		
 		
 		/***********************************	Job 4 - MapReduce D	 *****************************************/
@@ -950,8 +960,9 @@ public class CooccurrencesVectorsHadoop {
 		SequenceFileOutputFormat.setOutputPath(job4, new Path(args[1]+".intermediate4"));
 		SequenceFileOutputFormat.setOutputCompressorClass(job4, GzipCodec.class);
 
-		if(!job4.waitForCompletion(true))
+		if (!job4.waitForCompletion(true)) {
 			System.exit(1);
+		}
 		
 		
 		/***********************************	Job 5 - MapReduce E	 *****************************************/
@@ -973,8 +984,9 @@ public class CooccurrencesVectorsHadoop {
 		
 		job5.addCacheFile(new URI(args[2] + "#word-relatedness"));
 		
-		if(!job5.waitForCompletion(true))
+		if (!job5.waitForCompletion(true)) {
 			System.exit(1);
+		}
 		
 		
 		/***********************************	Print MapReduce jobs stats	 *****************************************/

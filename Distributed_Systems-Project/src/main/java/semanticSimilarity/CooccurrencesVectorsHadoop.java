@@ -765,8 +765,7 @@ public class CooccurrencesVectorsHadoop {
 			
 			
 			/* Iterate over Iterable<vector> to find both the vectors (if exist) */
-			// Ensure both the lexemes exist in corpus.
-			// (since mapper sent all pairs from gold standard, which some might not appear in our corpus)
+			// Ensure both the lexemes exist in corpus (since mapper sent all pairs from gold standard, which some might not appear in our corpus)
 			
             Iterator<CooccurrencesVector> vectorsIter = vectors.iterator();
             
@@ -847,7 +846,8 @@ public class CooccurrencesVectorsHadoop {
 		}
 		
 		// If argument with number was not provided --> process files from /input folder in yoav.amit.dsp-project bucket
-		else {											
+		else 
+		{											
 			job1.setMapperClass(TokenizerTxtMapper.class);
 			job1.setInputFormatClass(SyntacticNgramInputFormat.class);
 			SequenceFileInputFormat.addInputPath(job1, new Path(args[0]));
